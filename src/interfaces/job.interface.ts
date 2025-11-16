@@ -1,0 +1,30 @@
+export interface JobInput {
+  id: string;
+  title: string;
+  slug: string;
+  source?: string;
+  location?: string;
+  workArrangement?: string;
+  jobType?: string;
+  description?: string;
+  salaryDisplay?: string;
+  salaryMin?: number;
+  salaryMax?: number;
+  skills?: string[];
+  requirements?: string[];
+  status?: string;
+  postedDate?: string;
+  expiresAt?: string;
+  sourceUrl?: string;
+  descriptionRaw?: string;
+  titleSum?: string;
+  locationSum?: string;
+  skillsSum?: string;
+  descriptionSum?: string;
+  requirementsSum?: string;
+  titleEmbedding?: number[];
+  descriptionEmbedding?: number[];
+  skillsEmbedding?: number[];
+  locationEmbedding?: number[];
+  requirementsEmbedding?: number[];
+}

@@ -1,0 +1,33 @@
+import { Schema, model } from "mongoose";
+import { JobInput } from "../interfaces";
+
+export const JobSchema = new Schema<JobInput>({
+  id: { type: String, required: true, unique: true },
+  title: { type: String, required: true },
+  slug: { type: String, required: true },
+  source: String,
+  location: String,
+  workArrangement: String,
+  jobType: String,
+  description: String,
+  salaryDisplay: String,
+  salaryMin: Number,
+  salaryMax: Number,
+  skills: [String],
+  requirements: [String],
+  status: String,
+  postedDate: String,
+  expiresAt: String,
+  sourceUrl: String,
+  descriptionRaw: String,
+  titleSum: String,
+  locationSum: String,
+  skillsSum: String,
+  descriptionSum: String,
+  requirementsSum: String,
+  titleEmbedding: [Number],
+  descriptionEmbedding: [Number],
+  skillsEmbedding: [Number],
+  locationEmbedding: [Number],
+  requirementsEmbedding: [Number],
+});
