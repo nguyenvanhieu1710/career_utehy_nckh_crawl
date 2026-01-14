@@ -31,22 +31,4 @@ export class JobsController {
       });
     }
   }
-
-  static async triggerCrawl(req: Request, res: Response) {
-    try {
-      const { companies, jobCount, companyCount } =
-        await JobsService.triggerCrawl();
-      res.status(200).json({
-        data: { companies, jobCount, companyCount },
-        message: "Crawl completed successfully, data not saved to database",
-      });
-    } catch (error) {
-      res.status(500).json({
-        error: {
-          message: "Failed to trigger crawl",
-          details: (error as Error).message,
-        },
-      });
-    }
-  }
 }
