@@ -276,6 +276,7 @@ export class VietnamWorksCrawler {
 
     // Hàm crawl dữ liệu từ VietnamWorks API
     static async crawl(options?: {
+        url?: string;
         userId?: string;
         existingCompanies?: Set<string>;
         existingJobs?: Set<string>;
@@ -284,13 +285,14 @@ export class VietnamWorksCrawler {
             this.logger.log("Starting VietnamWorks crawler - fetching featured jobs from API");
 
             const {
+                url,
                 userId = "8036678",
                 existingCompanies = new Set<string>(),
                 existingJobs = new Set<string>(),
             } = options || {};
 
             const timestamp = Date.now();
-            const apiUrl = `${this.API_URL}?userId=${userId}&t=${timestamp}`;
+            const apiUrl = url || `${this.API_URL}?userId=${userId}&t=${timestamp}`;
 
             this.logger.log(`Fetching data from: ${apiUrl}`);
 

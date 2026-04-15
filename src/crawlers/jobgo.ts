@@ -181,6 +181,7 @@ export class JobGoCrawler {
 
   // Hàm crawl dữ liệu từ jobsgo.vn
   static async crawl(options?: {
+    baseUrl?: string;
     industries?: string[];
     maxPages?: number;
     existingCompanies?: Set<string>;
@@ -228,10 +229,14 @@ export class JobGoCrawler {
             `=== CRAWLING PAGE ${currentPage} FOR ${industry} ===`
           );
 
-          await page.goto(
-            `https://jobsgo.vn/cong-ty-${industry}-trang-${currentPage}.html`,
-            { waitUntil: "networkidle2" }
-          );
+          const targetUrl = options?.baseUrl || `https://jobsgo.vn/cong-ty-${industry}-trang-${currentPage}.html`;
+
+          await page.goto(targetUrl, { waitUntil: "networkidle2" });
+          
+          // Nếu truyền URL cụ thể, chỉ crawl trang đó rồi dừng
+          if (options?.baseUrl) {
+            hasNextPage = false;
+          }
 
           const companyLinks = await page.$$eval(".grid-item", (links) =>
             links.map((link) => (link as HTMLAnchorElement).href)
@@ -780,7 +785,8 @@ export class JobGoCrawler {
           await new Promise((r) => setTimeout(r, 2000)); // Đợi 2s giữa các trang
         }
 
-        this.logger.log(`Completed crawling industry: ${industry}`);
+        this.logger.log(`Completed industry: ${industry}`);
+        if (options?.baseUrl) break;
         await new Promise((r) => setTimeout(r, 3000)); // Đợi 3s giữa các ngành
       }
 
