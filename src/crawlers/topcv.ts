@@ -1,5 +1,5 @@
-import axios from "axios";
 import * as cheerio from "cheerio";
+import puppeteer, { Browser, Page } from "puppeteer";
 import { v4 as uuidv4 } from "uuid";
 import { CompanyInput, JobInput } from "../interfaces";
 
@@ -34,6 +34,66 @@ export class TopCVCrawler {
       "sec-fetch-mode": "navigate",
       "sec-fetch-site": "same-origin",
     };
+  }
+
+  private static async configurePage(page: Page) {
+    const headers = this.buildRequestHeaders();
+    if (headers["User-Agent"]) {
+      await page.setUserAgent(headers["User-Agent"]);
+    }
+
+    const { "User-Agent": _ua, ...extraHeaders } = headers;
+    await page.setExtraHTTPHeaders(extraHeaders as Record<string, string>);
+
+    page.setDefaultNavigationTimeout(60000);
+    page.setDefaultTimeout(60000);
+
+    await page.setViewport({ width: 1366, height: 768 });
+
+    await page.setRequestInterception(true);
+    page.on("request", (req) => {
+      const resourceType = req.resourceType();
+      if (
+        resourceType === "image" ||
+        resourceType === "font" ||
+        resourceType === "media"
+      ) {
+        void req.abort();
+        return;
+      }
+      void req.continue();
+    });
+
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, "webdriver", { get: () => false });
+      // @ts-expect-error - override in browser context
+      window.chrome = window.chrome || { runtime: {} };
+      Object.defineProperty(navigator, "languages", {
+        get: () => ["vi-VN", "vi", "en-US", "en"],
+      });
+      Object.defineProperty(navigator, "plugins", { get: () => [1, 2, 3] });
+    });
+  }
+
+  private static async sleep(ms: number) {
+    await new Promise((r) => setTimeout(r, ms));
+  }
+
+  private static async jitterSleep(minMs: number, maxMs: number) {
+    const ms = Math.floor(minMs + Math.random() * (maxMs - minMs));
+    await this.sleep(ms);
+  }
+
+  private static isCloudflareChallenge(html: string, title: string) {
+    const t = (title || "").toLowerCase();
+    if (t.includes("cloudflare") && t.includes("attention required")) return true;
+
+    const h = (html || "").toLowerCase();
+    return (
+      h.includes("attention required") &&
+      h.includes("cloudflare") &&
+      (h.includes("cf-error") || h.includes("cf-chl") || h.includes("cf-ray"))
+    );
   }
 
   private static extractSkills(text: string): string[] {
@@ -134,18 +194,51 @@ export class TopCVCrawler {
     return { salaryDisplay: display };
   }
 
+  private static normalizeJobType(tags: string[]): string | undefined {
+    for (const t of tags) {
+      const lower = t.toLowerCase();
+      if (lower.includes("full-time") || lower.includes("full time")) {
+        return "FULL_TIME";
+      }
+      if (lower.includes("part-time") || lower.includes("part time")) {
+        return "PART_TIME";
+      }
+      if (lower.includes("toàn thời gian")) {
+        return "FULL_TIME";
+      }
+      if (lower.includes("bán thời gian")) {
+        return "PART_TIME";
+      }
+    }
+    return undefined;
+  }
+
   // --- Fetch job detail page để lấy description ---
-  private static async fetchJobDetail(jobUrl: string): Promise<{
+  private static async fetchJobDetail(
+    page: Page,
+    jobUrl: string,
+  ): Promise<{
     description: string;
     requirements: string[];
     benefits: string;
     expiresAt?: string;
   }> {
     try {
-      const { data: html } = await axios.get(jobUrl, {
-        headers: this.buildRequestHeaders(),
-        timeout: 10000,
+      await page.goto(jobUrl, {
+        waitUntil: "domcontentloaded",
+        timeout: 60000,
       });
+
+      try {
+        await page.waitForSelector(
+          ".job-description__item--content, .job__description",
+          { timeout: 10000 },
+        );
+      } catch {
+        // ignore
+      }
+
+      const html = await page.content();
       const $ = cheerio.load(html);
 
       const description =
@@ -183,21 +276,85 @@ export class TopCVCrawler {
   }
 
   // --- Crawl 1 trang danh sách job ---
-  private static async crawlListPage(pageUrl: string): Promise<{
+  private static async crawlListPage(page: Page, pageUrl: string): Promise<{
     jobs: Array<{
       jobData: Partial<JobInput>;
       companyKey: string;
       companyData: { name: string; logo: string; slug: string };
     }>;
+    blockedByCloudflare: boolean;
   }> {
-    const { data: html } = await axios.get(pageUrl, {
-      headers: this.buildRequestHeaders(),
-      timeout: 15000,
+    await page.goto(pageUrl, {
+      waitUntil: "domcontentloaded",
+      timeout: 60000,
     });
-    const fs = await import("fs");
-    fs.writeFileSync("debug.html", html);
+
+    try {
+      await page.waitForFunction(
+        () =>
+          document.querySelectorAll(
+            ".job-item-search-result[data-job-id]",
+          ).length > 0,
+        { timeout: 20000 },
+      );
+    } catch {
+      // ignore
+    }
+
+    // Fallback: một số trang/pagination có thể load job bằng XHR + lazy render
+    for (let i = 0; i < 3; i++) {
+      const count = await page.evaluate(
+        () =>
+          document.querySelectorAll(
+            ".job-item-search-result[data-job-id]",
+          ).length,
+      );
+      if (count > 0) break;
+
+      await page.evaluate(() => {
+        window.scrollTo(0, document.body.scrollHeight);
+      });
+      await new Promise((r) => setTimeout(r, 1500));
+
+      try {
+        await page.waitForFunction(
+          () =>
+            document.querySelectorAll(
+              ".job-item-search-result[data-job-id]",
+            ).length > 0,
+          { timeout: 5000 },
+        );
+      } catch {
+        // ignore
+      }
+    }
+
+    const html = await page.content();
     const $ = cheerio.load(html);
-    console.log("Total job cards found:", $("[data-job-id]").length);
+
+    const jobCardCount = $(".job-item-search-result[data-job-id]").length;
+    console.log("Total job cards found:", jobCardCount);
+
+    let blockedByCloudflare = false;
+
+    if (jobCardCount === 0) {
+      const currentUrl = page.url();
+      let pageTitle = "";
+      try {
+        pageTitle = await page.title();
+      } catch {
+        // ignore
+      }
+      const snippet = html.substring(0, 400).replace(/\s+/g, " ").trim();
+      this.logger.warn(
+        `TopCV page returned 0 job cards. url=${currentUrl} title=${pageTitle} snippet=${snippet}`,
+      );
+
+      blockedByCloudflare = this.isCloudflareChallenge(html, pageTitle);
+      if (blockedByCloudflare) {
+        this.logger.warn("TopCV appears blocked by Cloudflare on this page.");
+      }
+    }
 
     const items: Array<{
       jobData: Partial<JobInput>;
@@ -256,7 +413,7 @@ export class TopCVCrawler {
 
         const { salaryMin, salaryMax, salaryDisplay } =
           this.parseSalary(salaryText);
-        const jobType = tags[0] || ""; // Tạm lấy tag đầu làm jobType nếu có
+        const jobType = this.normalizeJobType(tags);
 
         const jobData: Partial<JobInput> = {
           id: jobId,
@@ -267,7 +424,7 @@ export class TopCVCrawler {
           salaryDisplay,
           salaryMin,
           salaryMax,
-          jobType: jobType || undefined,
+          jobType,
           status: "OPEN",
           sourceUrl,
           titleSum: title,
@@ -289,7 +446,7 @@ export class TopCVCrawler {
       }
     });
 
-    return { jobs: items };
+    return { jobs: items, blockedByCloudflare };
   }
 
   // --- Main crawl method ---
@@ -311,70 +468,136 @@ export class TopCVCrawler {
       { name: string; logo: string; slug: string; jobs: JobInput[] }
     >();
 
-    // Nếu url là trang cụ thể (1 trang), chỉ crawl đó
-    const isSinglePage = url !== this.DEFAULT_LIST_URL || maxPages === 1;
-    const totalPages = isSinglePage ? 1 : maxPages;
+    let browser: Browser | null = null;
+    let page: Page | null = null;
 
-    for (let page = 1; page <= totalPages; page++) {
-      const pageUrl = isSinglePage ? url : `${url}?page=${page}`;
+    try {
+      browser = await puppeteer.launch({
+        headless: true,
+        args: [
+          "--headless=new",
+          "--disable-blink-features=AutomationControlled",
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+        ],
+      });
 
-      this.logger.log(`Crawling page ${page}/${totalPages}: ${pageUrl}`);
+      page = await browser.newPage();
+      await this.configurePage(page);
 
-      try {
-        const { jobs: rawItems } = await this.crawlListPage(pageUrl);
+      await page.goto(this.BASE_URL, {
+        waitUntil: "domcontentloaded",
+        timeout: 60000,
+      });
+      await this.jitterSleep(800, 1500);
 
-        if (rawItems.length === 0) {
-          this.logger.log(`No jobs found on page ${page}, stopping.`);
+      for (let pageNum = 1; pageNum <= maxPages; pageNum++) {
+        let pageUrl = url;
+        try {
+          const urlObj = new URL(url);
+          urlObj.searchParams.set("page", pageNum.toString());
+          pageUrl = urlObj.toString();
+        } catch (e) {
+          // Fallback nếu url không hợp lệ hoặc format lạ
+          pageUrl = url.includes("?")
+            ? `${url}&page=${pageNum}`
+            : `${url}?page=${pageNum}`;
+        }
+
+        this.logger.log(`Crawling page ${pageNum}/${maxPages}: ${pageUrl}`);
+
+        try {
+          let rawItems: Awaited<ReturnType<typeof this.crawlListPage>> | null =
+            null;
+
+          for (let attempt = 1; attempt <= 3; attempt++) {
+            rawItems = await this.crawlListPage(page, pageUrl);
+
+            if (rawItems.jobs.length > 0) break;
+
+            if (rawItems.blockedByCloudflare) {
+              const backoffMin = 3000 * attempt;
+              const backoffMax = 6000 * attempt;
+              await this.jitterSleep(backoffMin, backoffMax);
+
+              try {
+                await page.close();
+              } catch {
+                // ignore
+              }
+
+              page = await browser.newPage();
+              await this.configurePage(page);
+
+              // Prime lại session trước khi thử lại
+              await page.goto(this.BASE_URL, {
+                waitUntil: "domcontentloaded",
+                timeout: 60000,
+              });
+              await this.jitterSleep(800, 1500);
+              continue;
+            }
+
+            await this.jitterSleep(1200, 2500);
+          }
+
+          const finalJobs = rawItems?.jobs || [];
+
+          if (finalJobs.length === 0) {
+            this.logger.log(`No jobs found on page ${pageNum}, stopping.`);
+            break;
+          }
+
+          this.logger.log(`Found ${finalJobs.length} jobs on page ${pageNum}`);
+
+          for (const { jobData, companyKey, companyData } of finalJobs) {
+            let fullJob: JobInput = {
+              id: jobData.id || uuidv4(),
+              title: jobData.title || "",
+              slug: jobData.slug || this.toSlug(jobData.title || ""),
+              ...jobData,
+            } as JobInput;
+
+            // Tùy chọn: crawl detail page để lấy description đầy đủ
+            if (fetchDetail && jobData.sourceUrl) {
+              this.logger.log(`  Fetching detail: ${jobData.sourceUrl}`);
+              const detail = await this.fetchJobDetail(page, jobData.sourceUrl);
+              const skills = this.extractSkills(
+                detail.description + " " + detail.requirements.join(" "),
+              );
+
+              fullJob = {
+                ...fullJob,
+                description: detail.description,
+                requirements: detail.requirements,
+                skills,
+                descriptionSum: detail.description.substring(0, 500),
+                requirementsSum: detail.requirements.slice(0, 5).join("; "),
+                skillsSum: skills.join(", "),
+                expiresAt: detail.expiresAt,
+              };
+
+              await new Promise((r) => setTimeout(r, 500)); // tránh rate limit
+            }
+
+            if (!companiesMap.has(companyKey)) {
+              companiesMap.set(companyKey, {
+                ...companyData,
+                jobs: [],
+              });
+            }
+            companiesMap.get(companyKey)!.jobs.push(fullJob);
+          }
+
+          await this.jitterSleep(2000, 4500);
+        } catch (err) {
+          this.logger.error(`Error on page ${pageNum}: ${err}`);
           break;
         }
-
-        this.logger.log(`Found ${rawItems.length} jobs on page ${page}`);
-
-        for (const { jobData, companyKey, companyData } of rawItems) {
-          let fullJob: JobInput = {
-            id: jobData.id || uuidv4(),
-            title: jobData.title || "",
-            slug: jobData.slug || this.toSlug(jobData.title || ""),
-            ...jobData,
-          } as JobInput;
-
-          // Tùy chọn: crawl detail page để lấy description đầy đủ
-          if (fetchDetail && jobData.sourceUrl) {
-            this.logger.log(`  Fetching detail: ${jobData.sourceUrl}`);
-            const detail = await this.fetchJobDetail(jobData.sourceUrl);
-            const skills = this.extractSkills(
-              detail.description + " " + detail.requirements.join(" "),
-            );
-
-            fullJob = {
-              ...fullJob,
-              description: detail.description,
-              requirements: detail.requirements,
-              skills,
-              descriptionSum: detail.description.substring(0, 500),
-              requirementsSum: detail.requirements.slice(0, 5).join("; "),
-              skillsSum: skills.join(", "),
-              expiresAt: detail.expiresAt,
-            };
-
-            await new Promise((r) => setTimeout(r, 500)); // tránh rate limit
-          }
-
-          if (!companiesMap.has(companyKey)) {
-            companiesMap.set(companyKey, {
-              ...companyData,
-              jobs: [],
-            });
-          }
-          companiesMap.get(companyKey)!.jobs.push(fullJob);
-        }
-
-        if (!isSinglePage) {
-          await new Promise((r) => setTimeout(r, 1000)); // delay giữa các trang
-        }
-      } catch (err) {
-        this.logger.error(`Error on page ${page}: ${err}`);
-        break;
+      }
+    } finally {
+      if (browser) {
+        await browser.close();
       }
     }
 

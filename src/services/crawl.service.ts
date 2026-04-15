@@ -154,8 +154,6 @@ export class CrawlService {
                 const saveResult = mongoResult.status === "fulfilled" ? mongoResult.value : { inserted: 0, updated: 0 };
                 result.savedToDb = { inserted: saveResult.inserted, updated: saveResult.updated };
             }
-
-            this.logger.log(`TopCV crawl completed: ${companies.length} companies, ${jobCount} jobs`);
             return result;
         } catch (error) {
             this.logger.error(`TopCV crawl failed: ${error}`);

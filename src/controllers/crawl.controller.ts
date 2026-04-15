@@ -105,10 +105,12 @@ export class CrawlController {
   // Body: { url?: string, saveToDb?: boolean }
   static async crawlTopCV(req: Request, res: Response) {
     try {
-      const { url, saveToDb = false } = req.body;
+      const { url, maxPages, fetchDetail, saveToDb = false } = req.body;
 
       const result = await CrawlService.crawlTopCV({
         url,
+        maxPages,
+        fetchDetail,
         saveToDb,
       });
 
@@ -144,12 +146,13 @@ export class CrawlController {
   // Body: { saveToDb?: boolean, jobgo?: { url?, industries?, maxPages? }, vietnamworks?: { url?, userId? } }
   static async crawlAll(req: Request, res: Response) {
     try {
-      const { saveToDb = false, jobgo, vietnamworks } = req.body;
+      const { saveToDb = false, jobgo, vietnamworks, topcv } = req.body;
 
       const results = await CrawlService.crawlAll({
         saveToDb,
         jobgo,
         vietnamworks,
+        topcv,
       });
 
       const totalCompanies = results.reduce(

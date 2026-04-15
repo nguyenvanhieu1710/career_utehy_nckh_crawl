@@ -41,6 +41,8 @@ router.post("/vietnamworks", CrawlController.crawlVietnamWorks);
  * @access  Public
  * @body    {
  *            url?: string,           // Base URL, mặc định: https://www.topcv.vn
+ *            maxPages?: number,      // Số trang tối đa
+ *            fetchDetail?: boolean,  // Có crawl thêm trang detail để lấy description không
  *            saveToDb?: boolean      // Có lưu vào database không
  *          }
  */
@@ -58,6 +60,11 @@ router.post("/topcv", CrawlController.crawlTopCV);
  *            },
  *            vietnamworks?: {        // Options cho VietnamWorks
  *              userId?: string
+ *            },
+ *            topcv?: {               // Options cho TopCV
+ *              url?: string,
+ *              maxPages?: number,
+ *              fetchDetail?: boolean
  *            }
  *          }
  */

@@ -5,6 +5,11 @@ import { CompanyInput } from "../interfaces";
 import { v4 as uuidv4 } from "uuid";
 
 export class PostgresService {
+  private static truncate(value: string | undefined | null, max: number): string {
+    const v = (value || "").toString();
+    return v.length > max ? v.slice(0, max) : v;
+  }
+
   static async saveCompanies(companies: CompanyInput[]): Promise<{
     success: boolean;
     inserted: number;
@@ -68,19 +73,19 @@ export class PostgresService {
           let job = await jobRepo.findOneBy({ slug: jobInput.slug });
           
           const jobData = {
-            title: jobInput.title || "",
-            company_id: company.id, // reference tới postgres company id
-            location: jobInput.location || "",
-            work_arrangement: jobInput.workArrangement || "",
-            job_type: jobInput.jobType || "",
-            salary_display: jobInput.salaryDisplay || "",
+            title: this.truncate(jobInput.title, 200),
+            company_id: company.id,
+            location: this.truncate(jobInput.location, 150),
+            work_arrangement: this.truncate(jobInput.workArrangement, 50),
+            job_type: this.truncate(jobInput.jobType, 20),
+            salary_display: this.truncate(jobInput.salaryDisplay, 100),
             salary_min: jobInput.salaryMin || 0,
             salary_max: jobInput.salaryMax || 0,
             skills: jobInput.skills || [],
             requirements: jobInput.requirementsSum || jobInput.requirements?.join(" ") || "",
             description: jobInput.description || "",
-            status: jobInput.status?.toLowerCase() || "active",
-            url_source: jobInput.sourceUrl || "",
+            status: this.truncate(jobInput.status?.toLowerCase(), 20) || "active",
+            url_source: this.truncate(jobInput.sourceUrl, 255),
           };
 
           if (job) {
@@ -89,8 +94,8 @@ export class PostgresService {
           } else {
             job = jobRepo.create({
               ...jobData,
-              id: uuidv4(), // Job trong crawler thường id dạng `job-1234`, nên dùng UUID format
-              slug: jobInput.slug,
+              id: uuidv4(),
+              slug: this.truncate(jobInput.slug, 255),
             });
             await jobRepo.save(job);
           }
