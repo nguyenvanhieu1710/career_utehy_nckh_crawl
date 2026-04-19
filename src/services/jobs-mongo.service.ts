@@ -8,7 +8,7 @@ interface JobQueryParams {
   limit?: number;
 }
 
-export class JobsService {
+export class JobsMongoService {
   static async getJobs(queryParams: JobQueryParams): Promise<{
     jobs: JobInput[];
     total: number;

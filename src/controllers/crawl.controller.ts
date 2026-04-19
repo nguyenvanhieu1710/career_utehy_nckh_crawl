@@ -141,46 +141,4 @@ export class CrawlController {
       });
     }
   }
-
-  // POST /api/crawl/all - Crawl từ tất cả các nguồn
-  // Body: { saveToDb?: boolean, jobgo?: { url?, industries?, maxPages? }, vietnamworks?: { url?, userId? } }
-  static async crawlAll(req: Request, res: Response) {
-    try {
-      const { saveToDb = false, jobgo, vietnamworks, topcv } = req.body;
-
-      const results = await CrawlService.crawlAll({
-        saveToDb,
-        jobgo,
-        vietnamworks,
-        topcv,
-      });
-
-      const totalCompanies = results.reduce(
-        (sum, r) => sum + r.companyCount,
-        0,
-      );
-      const totalJobs = results.reduce((sum, r) => sum + r.jobCount, 0);
-      const successCount = results.filter((r) => r.success).length;
-
-      res.status(200).json({
-        data: {
-          results,
-          summary: {
-            totalSources: results.length,
-            successfulSources: successCount,
-            totalCompanies,
-            totalJobs,
-          },
-        },
-        message: `Crawl completed: ${successCount}/${results.length} sources succeeded`,
-      });
-    } catch (error) {
-      res.status(500).json({
-        error: {
-          message: "Failed to crawl all sources",
-          details: (error as Error).message,
-        },
-      });
-    }
-  }
 }

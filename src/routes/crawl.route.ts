@@ -48,26 +48,4 @@ router.post("/vietnamworks", CrawlController.crawlVietnamWorks);
  */
 router.post("/topcv", CrawlController.crawlTopCV);
 
-/**
- * @route   POST /api/crawl/all
- * @desc    Crawl dữ liệu từ tất cả các nguồn
- * @access  Public
- * @body    {
- *            saveToDb?: boolean,     // Có lưu vào database không
- *            jobgo?: {               // Options cho JobGo
- *              industries?: string[],
- *              maxPages?: number
- *            },
- *            vietnamworks?: {        // Options cho VietnamWorks
- *              userId?: string
- *            },
- *            topcv?: {               // Options cho TopCV
- *              url?: string,
- *              maxPages?: number,
- *              fetchDetail?: boolean
- *            }
- *          }
- */
-router.post("/all", CrawlController.crawlAll);
-
 export default router;

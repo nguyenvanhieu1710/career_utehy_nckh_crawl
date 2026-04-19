@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
-import { JobsService } from "../services";
+import { JobsMongoService, JobsPgService } from "../services";
+
 
 export class JobsController {
   static async getJobs(req: Request, res: Response) {
@@ -11,7 +12,10 @@ export class JobsController {
         limit: parseInt(req.query.limit as string) || 10,
       };
 
-      const result = await JobsService.getJobs(queryParams);
+      // Toggle between MongoDB and Postgres here
+      // const result = await JobsMongoService.getJobs(queryParams); // MongoDB
+      const result = await JobsPgService.getJobs(queryParams); // PostgreSQL
+
 
       res.status(200).json({
         data: result.jobs,

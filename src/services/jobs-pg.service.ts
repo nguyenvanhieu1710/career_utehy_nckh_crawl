@@ -4,7 +4,7 @@ import { JobEntity } from "../entities/job.entity";
 import { CompanyInput } from "../interfaces";
 import { v4 as uuidv4 } from "uuid";
 
-export class PostgresService {
+export class JobsPgService {
   private static truncate(value: string | undefined | null, max: number): string {
     const v = (value || "").toString();
     return v.length > max ? v.slice(0, max) : v;
@@ -108,5 +108,46 @@ export class PostgresService {
       console.error("❌ Error during PostgreSQL bulk save:", error);
       return { success: false, inserted, updated, error: (error as Error).message };
     }
+  }
+
+  static async getJobs(queryParams: {
+    keyword?: string;
+    location?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    if (!AppDataSource.isInitialized) {
+      return { jobs: [], total: 0, page: 1, limit: 10, totalPages: 0 };
+    }
+
+    const { keyword, location, page = 1, limit = 10 } = queryParams;
+    const jobRepo = AppDataSource.getRepository(JobEntity);
+
+    const queryBuilder = jobRepo.createQueryBuilder("job")
+      .leftJoinAndSelect("job.company", "company");
+
+    if (keyword) {
+      queryBuilder.andWhere("job.title ILIKE :keyword OR company.name ILIKE :keyword", { keyword: `%${keyword}%` });
+    }
+
+    if (location) {
+      queryBuilder.andWhere("job.location ILIKE :location", { location: `%${location}%` });
+    }
+
+    const pageNum = parseInt(String(page), 10);
+    const limitNum = parseInt(String(limit), 10);
+
+    const [jobs, total] = await queryBuilder
+      .skip((pageNum - 1) * limitNum)
+      .take(limitNum)
+      .getManyAndCount();
+
+    return {
+      jobs,
+      total,
+      page: pageNum,
+      limit: limitNum,
+      totalPages: Math.ceil(total / limitNum),
+    };
   }
 }
