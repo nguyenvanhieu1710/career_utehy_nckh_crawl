@@ -62,14 +62,15 @@ export class CrawlController {
   }
 
   // POST /api/crawl/vietnamworks - Crawl từ VietnamWorks
-  // Body: { url?: string, userId?: string, saveToDb?: boolean }
+  // Body: { url?: string, maxPages?: number, fetchDetail?: boolean, saveToDb?: boolean }
   static async crawlVietnamWorks(req: Request, res: Response) {
     try {
-      const { url, userId, saveToDb = false } = req.body;
+      const { url, maxPages, fetchDetail, saveToDb = false } = req.body;
 
       const result = await CrawlService.crawlVietnamWorks({
         url,
-        userId,
+        maxPages,
+        fetchDetail,
         saveToDb,
       });
 

@@ -63,6 +63,12 @@ export class JobEntity {
   @Column({ type: "text", nullable: true })
   benefits!: string;
 
+  @Column({ type: "varchar", length: 100, nullable: true })
+  job_level!: string;
+
+  @Column({ type: "int", nullable: true })
+  years_of_experience!: number;
+
   @Column({ type: "varchar", length: 20, nullable: true })
   status!: string;
 

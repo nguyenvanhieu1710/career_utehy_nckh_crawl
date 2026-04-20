@@ -409,7 +409,7 @@ export class TopCVCrawler {
           .get()
           .filter(Boolean);
 
-        const slug = this.toSlug(title) + "-" + jobId;
+        const slug = `${this.toSlug(title)}-${companySlug}-topcv-${jobId}`;
 
         const { salaryMin, salaryMax, salaryDisplay } =
           this.parseSalary(salaryText);

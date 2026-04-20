@@ -1,33 +1,23 @@
 import { JobGoCrawler, VietnamWorksCrawler, TopCVCrawler } from "../crawlers";
-import { CompanyInput } from "../interfaces";
-import { JobsMongoService } from "./jobs-mongo.service"; // MongoDB Service
+import { CompanyInput, CrawlerOptions } from "../interfaces";
+// import { JobsMongoService } from "./jobs-mongo.service"; // MongoDB Service
 import { JobsPgService } from "./jobs-pg.service";
 
 // Định nghĩa các nguồn crawl có sẵn
 export type CrawlSource = "jobgo" | "vietnamworks" | "topcv";
 
 // Interface cho options của từng nguồn
-interface JobGoOptions {
-  baseUrl?: string;
-  industries?: string[];
-  maxPages?: number;
-}
-
-interface VietnamWorksOptions {
-  url?: string;
-  userId?: string;
-}
-
 interface TopCVOptions {
   url?: string;
   maxPages?: number;
   fetchDetail?: boolean;
+  saveToDb?: boolean;
 }
 
 export interface CrawlOptions {
-  jobgo?: JobGoOptions;
-  vietnamworks?: VietnamWorksOptions;
-  topcv?: TopCVOptions;
+  jobgo?: CrawlerOptions;
+  vietnamworks?: CrawlerOptions;
+  topcv?: CrawlerOptions;
   saveToDb?: boolean;
 }
 
@@ -61,7 +51,8 @@ export class CrawlService {
         },
         vietnamworks: {
           name: "VietnamWorks",
-          description: "Crawl từ vietnamworks.com - sử dụng API trực tiếp",
+          description:
+            "Crawl từ vietnamworks.com - sử dụng Puppeteer để scrape HTML",
         },
         topcv: {
           name: "TopCV",
@@ -73,15 +64,12 @@ export class CrawlService {
 
   // Crawl từ JobGo
   static async crawlJobGo(
-    options?: JobGoOptions & { saveToDb?: boolean },
+    options?: CrawlerOptions & { saveToDb?: boolean },
   ): Promise<CrawlResult> {
     this.logger.log("🚀 Starting JobGo crawl...");
     try {
-      const companies = await JobGoCrawler.crawl({
-        baseUrl: options?.baseUrl,
-        industries: options?.industries,
-        maxPages: options?.maxPages,
-      });
+      const crawler = new JobGoCrawler();
+      const companies = await crawler.crawl(options);
 
       const jobCount = companies.reduce((sum, c) => sum + c.jobs.length, 0);
 
@@ -97,9 +85,9 @@ export class CrawlService {
       if (options?.saveToDb) {
         // Toggle MongoDB save here
         // const mongoResult = await JobsMongoService.saveCompanies(companies);
-        
+
         const pgResult = await JobsPgService.saveCompanies(companies);
-        
+
         result.savedToDb = {
           inserted: pgResult.inserted, // Switch to mongoResult.inserted if using Mongo
           updated: pgResult.updated, // Switch to mongoResult.updated if using Mongo
@@ -172,14 +160,12 @@ export class CrawlService {
 
   // Crawl từ VietnamWorks
   static async crawlVietnamWorks(
-    options?: VietnamWorksOptions & { saveToDb?: boolean },
+    options?: CrawlerOptions & { saveToDb?: boolean },
   ): Promise<CrawlResult> {
     this.logger.log("🚀 Starting VietnamWorks crawl...");
     try {
-      const companies = await VietnamWorksCrawler.crawl({
-        url: options?.url,
-        userId: options?.userId,
-      });
+      const crawler = new VietnamWorksCrawler();
+      const companies = await crawler.crawl(options);
 
       const jobCount = companies.reduce((sum, c) => sum + c.jobs.length, 0);
 

@@ -84,6 +84,9 @@ export class JobsPgService {
             skills: jobInput.skills || [],
             requirements: jobInput.requirementsSum || jobInput.requirements?.join(" ") || "",
             description: jobInput.description || "",
+            benefits: jobInput.benefits?.join("\n") || "",
+            job_level: this.truncate(jobInput.jobLevelName, 100),
+            years_of_experience: jobInput.yearsOfExperience || 0,
             status: this.truncate(jobInput.status?.toLowerCase(), 20) || "active",
             url_source: this.truncate(jobInput.sourceUrl, 255),
           };

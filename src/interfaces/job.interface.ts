@@ -16,6 +16,9 @@ export interface JobInput {
   postedDate?: string;
   expiresAt?: string;
   sourceUrl?: string;
+  jobLevelName?: string;
+  yearsOfExperience?: number;
+  benefits?: string[];
   descriptionRaw?: string;
   titleSum?: string;
   locationSum?: string;
