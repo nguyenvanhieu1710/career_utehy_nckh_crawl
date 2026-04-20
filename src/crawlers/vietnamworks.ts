@@ -7,9 +7,10 @@ import {
   ICrawler,
   CrawlerOptions,
 } from "../interfaces";
+import { Logger } from "../utils/logger";
 
 export class VietnamWorksCrawler implements ICrawler {
-  private static readonly logger = console;
+  private static readonly logger = Logger;
   private static readonly BASE_URL = "https://www.vietnamworks.com";
   private static readonly DEFAULT_LIST_URL =
     "https://www.vietnamworks.com/viec-lam";
@@ -688,6 +689,10 @@ export class VietnamWorksCrawler implements ICrawler {
             );
             break;
           }
+
+          VietnamWorksCrawler.logger.log(
+            `Processing ${pageJobs.length} jobs (extracting details may take a few minutes)...`,
+          );
 
           for (const { jobData, companyKey, companyData } of pageJobs) {
             const jobId = jobData.id || "unknown";

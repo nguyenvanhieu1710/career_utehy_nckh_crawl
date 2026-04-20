@@ -2,6 +2,7 @@ import { JobGoCrawler, VietnamWorksCrawler, TopCVCrawler } from "../crawlers";
 import { CompanyInput, CrawlerOptions } from "../interfaces";
 // import { JobsMongoService } from "./jobs-mongo.service"; // MongoDB Service
 import { JobsPgService } from "./jobs-pg.service";
+import { Logger } from "../utils/logger";
 
 // Định nghĩa các nguồn crawl có sẵn
 export type CrawlSource = "jobgo" | "vietnamworks" | "topcv";
@@ -35,7 +36,7 @@ export interface CrawlResult {
 }
 
 export class CrawlService {
-  private static readonly logger = console;
+  private static readonly logger = Logger;
 
   // Lấy danh sách các nguồn crawl có sẵn
   static getAvailableSources(): {

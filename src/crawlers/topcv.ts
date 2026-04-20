@@ -2,9 +2,10 @@ import * as cheerio from "cheerio";
 import puppeteer, { Browser, Page } from "puppeteer";
 import { v4 as uuidv4 } from "uuid";
 import { CompanyInput, JobInput } from "../interfaces";
+import { Logger } from "../utils/logger";
 
 export class TopCVCrawler {
-  private static readonly logger = console;
+  private static readonly logger = Logger;
   private static readonly BASE_URL = "https://www.topcv.vn";
   private static readonly DEFAULT_LIST_URL = "https://www.topcv.vn/viec-lam";
 
@@ -86,7 +87,8 @@ export class TopCVCrawler {
 
   private static isCloudflareChallenge(html: string, title: string) {
     const t = (title || "").toLowerCase();
-    if (t.includes("cloudflare") && t.includes("attention required")) return true;
+    if (t.includes("cloudflare") && t.includes("attention required"))
+      return true;
 
     const h = (html || "").toLowerCase();
     return (
@@ -231,7 +233,7 @@ export class TopCVCrawler {
 
       try {
         await page.waitForSelector(
-          ".job-description__item--content, .job__description",
+          ".job-description, .job-detail__body",
           { timeout: 10000 },
         );
       } catch {
@@ -241,14 +243,16 @@ export class TopCVCrawler {
       const html = await page.content();
       const $ = cheerio.load(html);
 
+      // Mô tả công việc: lấy item đầu tiên hoặc item không có class phụ
       const description =
+        $(".job-description__item").first().find(".job-description__item--content").text().trim() ||
         $(".job-description__item--content").first().text().trim() ||
-        $(".job__description").text().trim() ||
         "";
 
+      // Yêu cầu ứng viên: Ưu tiên class .requirement mới
       const requirementsText =
+        $(".job-description__item.requirement .job-description__item--content").text().trim() ||
         $(".job-description__item--content").eq(1).text().trim() ||
-        $(".job__requirements").text().trim() ||
         "";
 
       const requirements = requirementsText
@@ -258,16 +262,17 @@ export class TopCVCrawler {
             .filter(Boolean)
         : [];
 
+      // Quyền lợi: Ưu tiên class .benefit mới
       const benefits =
+        $(".job-description__item.benefit .job-description__item--content").text().trim() ||
         $(".job-description__item--content").eq(2).text().trim() ||
-        $(".job__benefit").text().trim() ||
         "";
 
+      // Hạn nộp: Selector chính xác hơn .job-detail__info--deadline-date
       const expiresAt =
-        $(".job-detail__info--deadline")
-          .text()
-          .replace(/[^0-9/\-]/g, "")
-          .trim() || undefined;
+        $(".job-detail__info--deadline-date").first().text().trim() ||
+        $(".job-detail__info--deadline").text().replace(/[^0-9/\-]/g, "").trim() ||
+        undefined;
 
       return { description, requirements, benefits, expiresAt };
     } catch {
@@ -276,7 +281,10 @@ export class TopCVCrawler {
   }
 
   // --- Crawl 1 trang danh sách job ---
-  private static async crawlListPage(page: Page, pageUrl: string): Promise<{
+  private static async crawlListPage(
+    page: Page,
+    pageUrl: string,
+  ): Promise<{
     jobs: Array<{
       jobData: Partial<JobInput>;
       companyKey: string;
@@ -292,9 +300,8 @@ export class TopCVCrawler {
     try {
       await page.waitForFunction(
         () =>
-          document.querySelectorAll(
-            ".job-item-search-result[data-job-id]",
-          ).length > 0,
+          document.querySelectorAll(".job-item-search-result[data-job-id]")
+            .length > 0,
         { timeout: 20000 },
       );
     } catch {
@@ -305,9 +312,8 @@ export class TopCVCrawler {
     for (let i = 0; i < 3; i++) {
       const count = await page.evaluate(
         () =>
-          document.querySelectorAll(
-            ".job-item-search-result[data-job-id]",
-          ).length,
+          document.querySelectorAll(".job-item-search-result[data-job-id]")
+            .length,
       );
       if (count > 0) break;
 
@@ -319,9 +325,8 @@ export class TopCVCrawler {
       try {
         await page.waitForFunction(
           () =>
-            document.querySelectorAll(
-              ".job-item-search-result[data-job-id]",
-            ).length > 0,
+            document.querySelectorAll(".job-item-search-result[data-job-id]")
+              .length > 0,
           { timeout: 5000 },
         );
       } catch {
@@ -549,6 +554,9 @@ export class TopCVCrawler {
           }
 
           this.logger.log(`Found ${finalJobs.length} jobs on page ${pageNum}`);
+          this.logger.log(
+            `Processing ${finalJobs.length} jobs (extracting details may take a few minutes)...`,
+          );
 
           for (const { jobData, companyKey, companyData } of finalJobs) {
             let fullJob: JobInput = {
@@ -560,7 +568,7 @@ export class TopCVCrawler {
 
             // Tùy chọn: crawl detail page để lấy description đầy đủ
             if (fetchDetail && jobData.sourceUrl) {
-              this.logger.log(`  Fetching detail: ${jobData.sourceUrl}`);
+              // this.logger.log(`  Fetching detail: ${jobData.sourceUrl}`);
               const detail = await this.fetchJobDetail(page, jobData.sourceUrl);
               const skills = this.extractSkills(
                 detail.description + " " + detail.requirements.join(" "),

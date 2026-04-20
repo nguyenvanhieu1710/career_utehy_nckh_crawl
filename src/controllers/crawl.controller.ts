@@ -21,15 +21,22 @@ export class CrawlController {
   }
 
   // POST /api/crawl/jobgo - Crawl từ JobGo
-  // Body: { url?: string, industries?: string[], maxPages?: number, saveToDb?: boolean }
+  // Body: { url?: string, industries?: string[], maxPages?: number, fetchDetail?: boolean, saveToDb?: boolean }
   static async crawlJobGo(req: Request, res: Response) {
     try {
-      const { url, industries, maxPages, saveToDb = false } = req.body;
-
-      const result = await CrawlService.crawlJobGo({
-        baseUrl: url,
+      const {
+        url,
         industries,
         maxPages,
+        fetchDetail = false,
+        saveToDb = false,
+      } = req.body;
+
+      const result = await CrawlService.crawlJobGo({
+        url,
+        industries,
+        maxPages,
+        fetchDetail,
         saveToDb,
       });
 

@@ -7,25 +7,12 @@ import {
   ICrawler,
   CrawlerOptions,
 } from "../interfaces";
+import { Logger } from "../utils/logger";
 
 export class JobGoCrawler implements ICrawler {
-  private static readonly logger = console;
-  private static readonly BASE_URL = "https://jobsgo.vn";
-
-  // Trích xuất ID công ty từ URL
-  private static extractCompanyIdFromUrl(url: string): string {
-    const match = url.match(/\/(?:tuyen-dung|cong-ty)\/([^\/?\s]+)/);
-    return match ? match[1] : url;
-  }
-
-  // Trích xuất ID job từ URL
-  private static extractJobIdFromUrl(url: string): string {
-    const match = url.match(/\/viec-lam\/([^\/-]+)-/);
-    if (match) return match[1];
-    const parts = url.split("/");
-    const lastPart = parts[parts.length - 1];
-    return lastPart.replace(".html", "").split("-").pop() || lastPart;
-  }
+  static readonly logger = Logger;
+  static readonly BASE_URL = "https://jobsgo.vn";
+  static readonly DEFAULT_LIST_URL = "https://jobsgo.vn/viec-lam.html";
 
   // Hàm chuyển chuỗi thành slug
   private static toSlug(str: string): string {
@@ -37,6 +24,13 @@ export class JobGoCrawler implements ICrawler {
       .replace(/^-+|-+$/g, "");
   }
 
+  // Common sleep for evasion
+  private static async jitterSleep(minMs: number, maxMs: number) {
+    const delay = Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
+    await new Promise((r) => setTimeout(r, delay));
+  }
+
+  // --- Map industries ---
   private static mapVietnameseToIndustryEnum(
     vietnameseIndustries: string[],
   ): string[] {
@@ -57,16 +51,157 @@ export class JobGoCrawler implements ICrawler {
       .filter((v, i, a) => a.indexOf(v) === i);
   }
 
-  // Hàm crawl dữ liệu chính
+  // --- Crawl 1 trang danh sách job ---
+  private static async crawlListPage(
+    page: Page,
+    pageUrl: string,
+  ): Promise<{
+    jobs: Array<{
+      jobData: Partial<JobInput>;
+      companyKey: string;
+      companyData: { name: string; logo: string; slug: string };
+    }>;
+  }> {
+    await page.goto(pageUrl, {
+      waitUntil: "domcontentloaded",
+      timeout: 60000,
+    });
+
+    // Cố gắng đợi trang load
+    try {
+      await page.waitForSelector(".job-list .job-card", { timeout: 15000 });
+      // Scroll to trigger lazy images if any
+      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+      await new Promise((r) => setTimeout(r, 1500));
+    } catch {
+      // ignore
+    }
+
+    const html = await page.content();
+    const $ = cheerio.load(html);
+
+    const jobCardCount = $(".job-list .job-card").length;
+    this.logger.log(`Found ${jobCardCount} job cards on page.`);
+
+    const items: Array<{
+      jobData: Partial<JobInput>;
+      companyKey: string;
+      companyData: { name: string; logo: string; slug: string };
+    }> = [];
+
+    $(".job-list .col-grid").each((_, el) => {
+      try {
+        const urlA = $(el).find("a.text-decoration-none").first();
+        const jHref = urlA.attr("href") || "";
+        const sourceUrl = jHref.startsWith("http") ? jHref : `https://jobsgo.vn${jHref}`;
+        
+        let jobId = $(el).find(".job-card").attr("data-id");
+        if (!jobId) {
+          const m = sourceUrl.match(/-([0-9]+)\.html/);
+          jobId = m ? m[1] : uuidv4();
+        }
+
+        const title = $(el).find("h3.job-title").text().trim();
+        const companyName = $(el).find(".company-title").text().trim();
+        const companyLogo = $(el).find(".image-wrapper img").attr("src") || "";
+        
+        const salaryText = $(el).find(".mt-1.text-primary span").first().text().trim();
+        const locationText = $(el).find(".mt-1.text-primary span").last().text().trim();
+
+        if (!title || !companyName) return;
+
+        const companySlug = this.toSlug(companyName);
+        const jobSlug = `${this.toSlug(title)}-${companySlug}-jobgo-${jobId}`;
+
+        const jobData: Partial<JobInput> = {
+          id: jobId,
+          title,
+          slug: jobSlug,
+          source: "jobgo",
+          sourceUrl,
+          salaryDisplay: salaryText,
+          location: locationText,
+          status: "OPEN",
+        };
+
+        items.push({
+          jobData,
+          companyKey: companySlug,
+          companyData: {
+            name: companyName,
+            logo: companyLogo,
+            slug: companySlug,
+          },
+        });
+      } catch (e) {
+        // skip error items
+      }
+    });
+
+    return { jobs: items };
+  }
+
+  // Hàm crawl detail page
+  private static async fetchJobDetail(
+    page: Page,
+    url: string,
+  ): Promise<{
+    description: string;
+    requirements: string[];
+    benefits: string[];
+    jobLevel?: string;
+    yearsOfExperience?: number;
+  }> {
+    try {
+      await page.goto(url, { waitUntil: "domcontentloaded", timeout: 20000 });
+      const html = await page.content();
+      const $ = cheerio.load(html);
+
+      const res = {
+        description: "",
+        requirements: [] as string[],
+        benefits: [] as string[],
+        jobLevel: undefined as string | undefined,
+        yearsOfExperience: undefined as number | undefined,
+      };
+
+      // In JobGo, Job detail content is usually split by headers h3 inside .job-detail-card or similar
+      const descBox = $(".job-detail-card, .job-detail-content").first();
+      res.description = descBox.text().trim();
+
+      // You mentioned you will code fetch_company_detail and refine fetch_job_detail later, 
+      // so this provides the basic skeleton.
+
+      return res;
+    } catch {
+      return { description: "", requirements: [], benefits: [] };
+    }
+  }
+
   async crawl(options?: CrawlerOptions): Promise<CompanyInput[]> {
     let browser: Browser | null = null;
+
     try {
-      const {
-        url: baseUrl = "https://jobsgo.vn/cong-ty-cong-nghe-thong-tin.html",
-        maxPages = 1,
-        existingCompanies = new Set<string>(),
-        existingJobs = new Set<string>(),
-      } = options || {};
+      let url = options?.url;
+
+      if (!url && options?.industries && options.industries.length > 0) {
+        // VD: 'tai-chinh-ngan-hang-chung-khoan'
+        // Ở JobsGo URL mẫu: https://jobsgo.vn/viec-lam-{slug}.html
+        // Chúng ta giả định industry gửi lên là dạng slug giống user cung cấp.
+        const industryStr = options.industries[0];
+        url = `https://jobsgo.vn/viec-lam-${industryStr}.html`;
+      }
+
+      url = url || JobGoCrawler.DEFAULT_LIST_URL;
+
+      const maxPages = options?.maxPages || 1;
+      const fetchDetail = options?.fetchDetail || false;
+      const existingCompanies = options?.existingCompanies || new Set<string>();
+      const existingJobs = options?.existingJobs || new Set<string>();
+
+      JobGoCrawler.logger.log(
+        `Starting JobGo crawler from: ${url}`,
+      );
 
       browser = await puppeteer.launch({
         headless: true,
@@ -74,142 +209,129 @@ export class JobGoCrawler implements ICrawler {
       });
 
       const page = await browser.newPage();
-      const results: CompanyInput[] = [];
+      await page.setViewport({ width: 1366, height: 768 });
 
-      let currentPage = 1;
-      let hasNextPage = true;
+      const companiesMap = new Map<
+        string,
+        Omit<CompanyInput, "id" | "locations" | "industries"> & { jobs: JobInput[] }
+      >();
+      let skippedJobsCount = 0;
 
-      while (hasNextPage && currentPage <= maxPages) {
-        const targetUrl =
-          currentPage === 1
-            ? baseUrl
-            : baseUrl.includes("?")
-              ? `${baseUrl}&page=${currentPage}`
-              : `${baseUrl}?page=${currentPage}`;
-
-        JobGoCrawler.logger.log(`🔍 JobGo: Crawling Page ${currentPage}`);
-
-        const pageSuccess = await this.crawlListPage(
-          page,
-          targetUrl,
-          results,
-          existingCompanies,
-          existingJobs,
-        );
-
-        if (!pageSuccess || currentPage >= maxPages) {
-          hasNextPage = false;
-        } else {
-          currentPage++;
-          await new Promise((r) => setTimeout(r, 2000));
+      for (let pageNum = 1; pageNum <= maxPages; pageNum++) {
+        let pageUrl = url;
+        if (pageNum > 1) {
+          pageUrl = url.includes("?") 
+            ? `${url}&page=${pageNum}`
+            : `${url}?page=${pageNum}`;
         }
-      }
 
-      JobGoCrawler.logger.log(`✅ JobGo crawl completed: ${results.length} companies`);
-      return results;
-    } catch (error) {
-      JobGoCrawler.logger.error(`❌ JobGo crawl failed: ${error}`);
-      return [];
-    } finally {
-      if (browser) await browser.close();
-    }
-  }
+        JobGoCrawler.logger.log(`Crawling page ${pageNum}/${maxPages}: ${pageUrl}`);
 
-  private async crawlListPage(
-    page: Page,
-    url: string,
-    results: CompanyInput[],
-    existingCompanies: Set<string>,
-    existingJobs: Set<string>,
-  ): Promise<boolean> {
-    try {
-      await page.goto(url, { waitUntil: "networkidle2" });
-      const html = await page.content();
-      const $ = cheerio.load(html);
-
-      const jobLinks: string[] = [];
-      $(".col-grid .job-card a.text-decoration-none").each((_, el) => {
-        const href = $(el).attr("href");
-        if (href) jobLinks.push(href.startsWith("http") ? href : `https://jobsgo.vn${href}`);
-      });
-
-      if (jobLinks.length === 0) return false;
-
-      const companyLinks = new Set<string>();
-      for (const jobUrl of jobLinks.slice(0, 10)) {
         try {
-          await page.goto(jobUrl, { waitUntil: "domcontentloaded" });
-          const jobHtml = await page.content();
-          const $job = cheerio.load(jobHtml);
-          const cLink = $job('a[href*="/tuyen-dung/"], a[href*="/cong-ty/"]').first().attr("href");
-          if (cLink) companyLinks.add(cLink.startsWith("http") ? cLink : `https://jobsgo.vn${cLink}`);
-        } catch (e) {}
+          const rawResults = await JobGoCrawler.crawlListPage(page, pageUrl);
+          const pageJobs = rawResults.jobs || [];
+
+          if (pageJobs.length === 0) {
+            JobGoCrawler.logger.log(
+              `No jobs found on page ${pageNum}, stopping list crawl.`,
+            );
+            break;
+          }
+
+          JobGoCrawler.logger.log(
+            `Processing ${pageJobs.length} jobs (extracting details may take a few minutes)...`,
+          );
+
+          for (const { jobData, companyKey, companyData } of pageJobs) {
+            const jobId = jobData.id || "unknown";
+
+            if (existingJobs.has(jobId)) {
+              skippedJobsCount++;
+              continue;
+            }
+
+            let fullJob: JobInput = {
+              ...jobData,
+            } as JobInput;
+
+            if (fetchDetail && jobData.sourceUrl) {
+              const detail = await JobGoCrawler.fetchJobDetail(
+                page,
+                jobData.sourceUrl,
+              );
+
+              fullJob = {
+                ...fullJob,
+                description: detail.description || fullJob.description,
+                requirements: detail.requirements,
+                jobLevelName: detail.jobLevel,
+                yearsOfExperience: detail.yearsOfExperience,
+                benefits: detail.benefits,
+                descriptionRaw: detail.description,
+                descriptionSum: (detail.description || "").substring(0, 500),
+              };
+
+              await JobGoCrawler.jitterSleep(800, 1500);
+            }
+
+            if (!companiesMap.has(companyKey)) {
+              companiesMap.set(companyKey, {
+                ...companyData,
+                jobs: [],
+              });
+            }
+            companiesMap.get(companyKey)!.jobs.push(fullJob);
+            existingJobs.add(jobId);
+          }
+
+          await JobGoCrawler.jitterSleep(2000, 4000);
+        } catch (err) {
+          JobGoCrawler.logger.error(`Error on page ${pageNum}: ${err}`);
+          break;
+        }
       }
 
-      for (const cLink of companyLinks) {
-        const companyId = JobGoCrawler.extractCompanyIdFromUrl(cLink);
-        if (existingCompanies.has(companyId)) continue;
-
-        await page.goto(cLink, { waitUntil: "networkidle2" });
-        const cHtml = await page.content();
-        const $c = cheerio.load(cHtml);
-
-        const companyName = $c(".fw-bolder.text-dark.fs-3.mb-2.w-100").text().trim();
-        if (!companyName) continue;
-
-        const companyLogo = $c("img.img-fluid.logo.rounded-3").attr("src") || "";
-        const companySlug = JobGoCrawler.toSlug(companyName);
-
-        const jobs: JobInput[] = [];
-        const jobItemsInCompany = $c("a.text-decoration-none.text-dark.d-block.h-100");
-
-        for (let i = 0; i < jobItemsInCompany.length; i++) {
-          const jHref = $(jobItemsInCompany[i]).attr("href") || "";
-          const jUrl = jHref.startsWith("http") ? jHref : `https://jobsgo.vn${jHref}`;
-          const jobId = JobGoCrawler.extractJobIdFromUrl(jUrl);
-
-          if (existingJobs.has(jobId)) continue;
-
-          await page.goto(jUrl, { waitUntil: "networkidle2" });
-          const jHtml = await page.content();
-          const $j = cheerio.load(jHtml);
-
-          const title = $j("h1.job-title").text().trim();
-          const salaryDisplay = $j("span.text-truncate.d-inline-block strong").text().trim();
-          
-          const jobSlug = `${JobGoCrawler.toSlug(title)}-${companySlug}-jobgo-${jobId}`;
-
-          jobs.push({
-            id: jobId,
-            title,
-            slug: jobSlug,
-            source: "jobgo",
-            salaryDisplay,
-            location: $j("div.location-extra.mt-2").text().trim(),
-            description: $j("div.job-detail-card").first().find("div").text().trim(),
-            status: "OPEN",
-            sourceUrl: jUrl,
-          } as JobInput);
-          
-          existingJobs.add(jobId);
+      // Convert Map to Array of CompanyInput
+      const results: CompanyInput[] = [];
+      for (const [key, mapData] of companiesMap.entries()) {
+        if (existingCompanies.has(key)) {
+          // If we want to strictly filter out companies, but wait, VW approach allows same company new jobs
         }
+
+        const allLocations = mapData.jobs
+          .map((job) => job.location)
+          .filter((loc): loc is string => !!loc && loc.trim() !== "");
+        const uniqueLocations = [...new Set(allLocations)];
 
         results.push({
           id: uuidv4(),
-          name: companyName,
-          slug: companySlug,
-          logo: companyLogo,
-          jobs,
-          locations: [],
+          name: mapData.name,
+          slug: mapData.slug,
+          logo: mapData.logo,
+          locations: uniqueLocations,
           industries: [],
+          jobs: mapData.jobs,
         } as CompanyInput);
-
-        existingCompanies.add(companyId);
       }
 
-      return true;
-    } catch (e) {
-      return false;
+      const totalJobsMapped = results.reduce(
+        (sum, c) => sum + c.jobs.length,
+        0,
+      );
+
+      JobGoCrawler.logger.log(`\n=== JOBGO CRAWL COMPLETED ===`);
+      JobGoCrawler.logger.log(`Total jobs processed: ${totalJobsMapped}`);
+      JobGoCrawler.logger.log(`Total jobs skipped: ${skippedJobsCount}`);
+      JobGoCrawler.logger.log(`Total companies: ${results.length}\n`);
+
+      return results;
+    } catch (error) {
+      JobGoCrawler.logger.error("JobGo Crawl Exception:", error);
+      return [];
+    } finally {
+      if (browser) {
+        await browser.close();
+      }
     }
   }
 }
