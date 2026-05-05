@@ -7,11 +7,13 @@ import {
   ICrawler,
   CrawlerOptions,
   SelectorConfig,
+  CrawlerCssConfig,
 } from "../interfaces";
 import { Logger } from "../utils/logger";
 
 export class GenericCrawler implements ICrawler {
   protected static readonly logger = Logger;
+  protected sourceName: string = "generic";
 
   // --- Utility functions ---
   protected static toSlug(str: string): string {
@@ -97,8 +99,10 @@ export class GenericCrawler implements ICrawler {
   ): string | string[] | undefined {
     if (!config) return undefined;
 
-    const el = context.find(config.selector);
-    if (el.length === 0) return undefined;
+    const isSelf = config.selector === "self";
+    const el = isSelf ? context : context.find(config.selector);
+    
+    if (!el || el.length === 0) return undefined;
 
     if (config.isMultiple) {
       const results: string[] = [];
@@ -108,9 +112,12 @@ export class GenericCrawler implements ICrawler {
         else if (config.extract === "html") val = $(elem).html() || "";
         else if (config.extract === "attr" && config.attrName)
           val = $(elem).attr(config.attrName) || "";
-        if (val) results.push(val.trim());
+        
+        if (val && val.trim()) {
+          results.push(val.trim());
+        }
       });
-      return results;
+      return [...new Set(results)];
     } else {
       let val = "";
       if (config.extract === "text") val = el.first().text();
@@ -226,7 +233,7 @@ export class GenericCrawler implements ICrawler {
           id: jobId,
           title,
           slug: jobSlug,
-          source: "generic",
+          source: options.sourceName || "generic",
           sourceUrl,
           salaryDisplay: salaryText,
           location: locationText,
@@ -252,31 +259,141 @@ export class GenericCrawler implements ICrawler {
   // --- Fetch detail ---
   protected static async fetchJobDetail(
     page: Page,
-    jobUrl: string,
+    url: string,
     options: CrawlerOptions
   ): Promise<{
     description: string;
     requirements: string[];
-    benefits: string;
+    benefits: string[];
+    skills: string[];
   }> {
-    const detailConfig = options.cssConfig?.detail;
-    if (!detailConfig) return { description: "", requirements: [], benefits: "" };
-
     try {
-      await page.goto(jobUrl, { waitUntil: "domcontentloaded", timeout: 40000 });
-      const html = await page.content();
-      const $ = cheerio.load(html);
+      await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
+      await this.jitterSleep(1000, 2000);
+
+      const content = await page.content();
+      const $ = cheerio.load(content);
       const $body = $("body");
 
-      const description = (this.extractValue($, $body, detailConfig.description) as string) || "";
-      const requirementsText = (this.extractValue($, $body, detailConfig.requirements) as string) || "";
-      const requirements = requirementsText ? requirementsText.split("\n").map(l => l.trim()).filter(Boolean) : [];
-      const benefits = (this.extractValue($, $body, detailConfig.benefits) as string) || "";
-
-      return { description, requirements, benefits };
-    } catch {
-      return { description: "", requirements: [], benefits: "" };
+      return this.extractDetailFromCheerio($, $body, options.cssConfig!);
+    } catch (err) {
+      this.logger.error(`Error fetching job detail from ${url}: ${err}`);
+      return { description: "", requirements: [], benefits: [], skills: [] };
     }
+  }
+
+  protected static async fetchJobDetailInteractive(
+    page: Page,
+    index: number,
+    options: CrawlerOptions
+  ): Promise<{
+    description: string;
+    requirements: string[];
+    benefits: string[];
+    skills: string[];
+  }> {
+    const config = options.cssConfig!;
+    const interactive = config.behavior!.interactiveDetail!;
+    const detailConfig = config.detail!;
+
+    try {
+      const items = await page.$$(interactive.itemSelector);
+      if (items[index]) {
+        // 0. Lấy tiêu đề từ card để làm mốc kiểm tra
+        const titleSelector = (config.list.title as any).selector || config.list.title;
+        const jobTitle = await items[index].$eval(titleSelector, el => el.textContent?.trim()).catch(() => "");
+
+        // 1. Cuộn tới item và click
+        await items[index].evaluate((el) => {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+        });
+        await this.sleep(300);
+        await items[index].click();
+        
+        // 2. Chờ nội dung load bằng cách kiểm tra tiêu đề trong khung chi tiết
+        if (jobTitle) {
+          try {
+            await page.waitForFunction(
+              (containerSel, title) => {
+                const container = document.querySelector(containerSel);
+                return container && container.textContent?.includes(title);
+              },
+              { timeout: 5000 },
+              interactive.detailContainer,
+              jobTitle
+            );
+          } catch (e) {
+            this.logger.warn(`Timeout waiting for job title "${jobTitle}" in detail pane`);
+          }
+        }
+
+        await this.sleep(interactive.waitAfterClickMs || 500);
+
+        const content = await page.content();
+        const $ = cheerio.load(content);
+        
+        // 3. Sử dụng container làm context để trích xuất chính xác hơn
+        const $container = $(interactive.detailContainer);
+        if ($container.length === 0) {
+          return this.extractDetailFromCheerio($, $("body"), config);
+        }
+
+        return this.extractDetailFromCheerio($, $container, config);
+      }
+    } catch (err) {
+      this.logger.error(`Error in interactive detail extraction: ${err}`);
+    }
+    return { description: "", requirements: [], benefits: [], skills: [] };
+  }
+
+  private static extractDetailFromCheerio(
+    $: any,
+    $body: any,
+    config: CrawlerCssConfig
+  ) {
+    const detailConfig = config.detail!;
+    const description =
+      (this.extractValue($, $body, detailConfig.description) as string) || "";
+
+    const extractedRequirements = this.extractValue(
+      $,
+      $body,
+      detailConfig.requirements
+    );
+    let requirements: string[] = [];
+    if (Array.isArray(extractedRequirements)) {
+      requirements = extractedRequirements
+        .map((r) => r.trim())
+        .filter(Boolean);
+    } else if (
+      typeof extractedRequirements === "string" &&
+      extractedRequirements
+    ) {
+      requirements = extractedRequirements
+        .split("\n")
+        .map((l) => l.trim())
+        .filter(Boolean);
+    }
+
+    const extractedBenefits = this.extractValue($, $body, detailConfig.benefits);
+    let benefits: string[] = [];
+    if (Array.isArray(extractedBenefits)) {
+      benefits = extractedBenefits.map((b) => b.trim()).filter(Boolean);
+    } else if (typeof extractedBenefits === "string" && extractedBenefits) {
+      benefits = extractedBenefits
+        .split("\n")
+        .map((l) => l.trim())
+        .filter(Boolean);
+    }
+
+    const extractedSkills = this.extractValue($, $body, detailConfig.skills);
+    const skills = Array.isArray(extractedSkills)
+      ? extractedSkills
+      : typeof extractedSkills === "string"
+      ? [extractedSkills]
+      : [];
+
+    return { description, requirements, benefits, skills };
   }
 
   // --- Main Crawler Method ---
@@ -339,7 +456,10 @@ export class GenericCrawler implements ICrawler {
         GenericCrawler.logger.log(`Crawling page ${pageNum}/${maxPages}: ${pageUrl}`);
 
         try {
-          const rawResults = await GenericCrawler.crawlListPage(page, pageUrl, options);
+          const rawResults = await GenericCrawler.crawlListPage(page, pageUrl, {
+            ...options,
+            sourceName: this.sourceName,
+          });
           const pageJobs = rawResults.jobs || [];
 
           if (pageJobs.length === 0) {
@@ -349,20 +469,50 @@ export class GenericCrawler implements ICrawler {
 
           GenericCrawler.logger.log(`Found ${pageJobs.length} jobs on page ${pageNum}.`);
 
-          for (const { jobData, companyKey, companyData } of pageJobs) {
-             let fullJob = { ...jobData } as JobInput;
+          for (let i = 0; i < pageJobs.length; i++) {
+            const { jobData, companyKey, companyData } = pageJobs[i];
+            let fullJob = { ...jobData } as JobInput;
 
-             if (fetchDetail && jobData.sourceUrl && cssConfig.detail) {
-                const detail = await GenericCrawler.fetchJobDetail(page, jobData.sourceUrl, options);
+            if (fetchDetail && cssConfig.detail) {
+              let detail: any;
+              if (cssConfig.behavior?.interactiveDetail) {
+                // Interactive mode: click and extract on same page
+                detail = await GenericCrawler.fetchJobDetailInteractive(
+                  page,
+                  i,
+                  options
+                );
+              } else if (jobData.sourceUrl) {
+                // Standard mode: navigate to URL
+                detail = await GenericCrawler.fetchJobDetail(
+                  page,
+                  jobData.sourceUrl,
+                  options
+                );
+                // Sau khi vào trang detail, phải quay lại trang list cho job tiếp theo
+                await page.goto(pageUrl, { waitUntil: "domcontentloaded" });
+              }
+
+              if (detail) {
+                const mergedSkills = [
+                  ...new Set([
+                    ...(fullJob.skills || []),
+                    ...(detail.skills || []),
+                  ]),
+                ];
                 fullJob = {
-                   ...fullJob,
-                   description: detail.description,
-                   requirements: detail.requirements,
-                   descriptionSum: detail.description.substring(0, 500),
-                   requirementsSum: detail.requirements.slice(0, 5).join("; "),
+                  ...fullJob,
+                  description: detail.description,
+                  requirements: detail.requirements,
+                  benefits: detail.benefits,
+                  descriptionSum: detail.description.substring(0, 500),
+                  requirementsSum: detail.requirements.slice(0, 5).join("; "),
+                  skills: mergedSkills,
+                  skillsSum: mergedSkills.join(", "),
                 };
-                await GenericCrawler.jitterSleep(delayMin / 2, delayMax / 2);
-             }
+              }
+              await GenericCrawler.jitterSleep(delayMin / 2, delayMax / 2);
+            }
 
              if (!companiesMap.has(companyKey)) {
                companiesMap.set(companyKey, { ...companyData, jobs: [] });

@@ -23,12 +23,18 @@ export interface CrawlerCssConfig {
     description: SelectorConfig;
     requirements?: SelectorConfig;
     benefits?: SelectorConfig;
+    skills?: SelectorConfig;
     expiresAt?: SelectorConfig;
   };
   // Cấu hình hành vi chung của trang
   behavior?: {
     lazyLoadList?: boolean; // Tự cuộn để load item
     delayMs?: [number, number]; // [min, max] delay cho từng request
+    interactiveDetail?: {
+      itemSelector: string; // Selector để click vào từng job card
+      detailContainer: string; // Selector của khung chứa nội dung chi tiết bên phải
+      waitAfterClickMs?: number; // Thời gian chờ sau khi click
+    };
   };
 }
 
@@ -39,6 +45,7 @@ export interface CrawlerOptions {
   existingCompanies?: Set<string>;
   existingJobs?: Set<string>;
   cssConfig?: CrawlerCssConfig;
+  sourceName?: string;
   [key: string]: any;
 }
 

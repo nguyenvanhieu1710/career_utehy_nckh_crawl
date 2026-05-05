@@ -29,8 +29,9 @@ router.post("/jobgo", CrawlController.crawlJobGo);
  * @access  Public
  * @body    {
  *            url?: string,           // Base URL, mặc định: https://www.vietnamworks.com
- *            userId?: string,        // User ID cho API request
- *            saveToDb?: boolean      // Có lưu vào database không
+ *            maxPages?: number,      // Số trang tối đa
+ *            fetchDetail?: boolean,  // Có crawl thêm trang detail để lấy description không
+ *            saveToDb?: boolean,     // Có lưu vào database không
  *          }
  */
 router.post("/vietnamworks", CrawlController.crawlVietnamWorks);
@@ -60,5 +61,19 @@ router.post("/topcv", CrawlController.crawlTopCV);
  *          }
  */
 router.post("/itviec", CrawlController.crawlITviec);
+
+/**
+ * @route   POST /api/crawl/vieclam24h
+ * @desc    Crawl dữ liệu từ Vieclam24h
+ * @access  Public
+ * @body    {
+ *            url?: string,           // Base URL, mặc định: https://vieclam24h.vn
+ *            maxPages?: number,      // Số trang tối đa
+ *            fetchDetail?: boolean,  // Có crawl thêm trang detail để lấy description không
+ *            saveToDb?: boolean,     // Có lưu vào database không
+ *            cssConfig?: CrawlerCssConfig  // Cấu hình CSS cho việc crawl
+ *          }
+ */
+router.post("/vieclam24h", CrawlController.crawlVieclam24h);
 
 export default router;

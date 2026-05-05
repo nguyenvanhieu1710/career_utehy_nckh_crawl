@@ -3,6 +3,7 @@ import {
   VietnamWorksCrawler,
   TopCVCrawler,
   ITviecCrawler,
+  Vieclam24hCrawler,
 } from "../crawlers";
 import { CompanyInput, CrawlerOptions } from "../interfaces";
 // import { JobsMongoService } from "./jobs-mongo.service"; // MongoDB Service
@@ -10,7 +11,12 @@ import { JobsPgService } from "./jobs-pg.service";
 import { Logger } from "../utils/logger";
 
 // Định nghĩa các nguồn crawl có sẵn
-export type CrawlSource = "jobgo" | "vietnamworks" | "topcv" | "itviec";
+export type CrawlSource =
+  | "jobgo"
+  | "vietnamworks"
+  | "topcv"
+  | "itviec"
+  | "vieclam24h";
 
 // Interface cho options của từng nguồn
 interface TopCVOptions {
@@ -68,6 +74,11 @@ export class CrawlService {
         itviec: {
           name: "ITviec",
           description: "Crawl từ itviec.com - sử dụng Generic Crawler động",
+        },
+        vieclam24h: {
+          name: "Vieclam24h",
+          description:
+            "Crawl từ vieclam24h.vn - sử dụng CSS Config động từ Body",
         },
       },
     };
@@ -255,6 +266,52 @@ export class CrawlService {
       this.logger.error(`❌ ITviec crawl failed: ${error}`);
       return {
         source: "itviec",
+        companies: [],
+        companyCount: 0,
+        jobCount: 0,
+        success: false,
+      };
+    }
+  }
+
+  // Crawl từ Vieclam24h
+  static async crawlVieclam24h(
+    options: CrawlerOptions & { saveToDb?: boolean },
+  ): Promise<CrawlResult> {
+    this.logger.log("🚀 Starting Vieclam24h crawl (Dynamic Config)...");
+    try {
+      const crawler = new Vieclam24hCrawler();
+      const companies = await crawler.crawl(options);
+
+      const jobCount = companies.reduce(
+        (sum: number, c: CompanyInput) => sum + c.jobs.length,
+        0,
+      );
+
+      const result: CrawlResult = {
+        source: "vieclam24h",
+        companies,
+        companyCount: companies.length,
+        jobCount,
+        success: true,
+      };
+
+      if (options?.saveToDb) {
+        const pgResult = await JobsPgService.saveCompanies(companies);
+        result.savedToDb = {
+          inserted: pgResult.inserted,
+          updated: pgResult.updated,
+        };
+      }
+
+      this.logger.log(
+        `✅ Vieclam24h crawl completed: ${companies.length} companies, ${jobCount} jobs`,
+      );
+      return result;
+    } catch (error) {
+      this.logger.error(`❌ Vieclam24h crawl failed: ${error}`);
+      return {
+        source: "vieclam24h",
         companies: [],
         companyCount: 0,
         jobCount: 0,
