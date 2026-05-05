@@ -48,4 +48,17 @@ router.post("/vietnamworks", CrawlController.crawlVietnamWorks);
  */
 router.post("/topcv", CrawlController.crawlTopCV);
 
+/**
+ * @route   POST /api/crawl/itviec
+ * @desc    Crawl dữ liệu từ ITviec (itviec.com)
+ * @access  Public
+ * @body    {
+ *            url?: string,           // Base URL, mặc định: https://itviec.com
+ *            maxPages?: number,      // Số trang tối đa
+ *            fetchDetail?: boolean,  // Có crawl thêm trang detail để lấy description không
+ *            saveToDb?: boolean      // Có lưu vào database không
+ *          }
+ */
+router.post("/itviec", CrawlController.crawlITviec);
+
 export default router;

@@ -1,11 +1,16 @@
-import { JobGoCrawler, VietnamWorksCrawler, TopCVCrawler } from "../crawlers";
+import {
+  JobGoCrawler,
+  VietnamWorksCrawler,
+  TopCVCrawler,
+  ITviecCrawler,
+} from "../crawlers";
 import { CompanyInput, CrawlerOptions } from "../interfaces";
 // import { JobsMongoService } from "./jobs-mongo.service"; // MongoDB Service
 import { JobsPgService } from "./jobs-pg.service";
 import { Logger } from "../utils/logger";
 
 // Định nghĩa các nguồn crawl có sẵn
-export type CrawlSource = "jobgo" | "vietnamworks" | "topcv";
+export type CrawlSource = "jobgo" | "vietnamworks" | "topcv" | "itviec";
 
 // Interface cho options của từng nguồn
 interface TopCVOptions {
@@ -19,6 +24,7 @@ export interface CrawlOptions {
   jobgo?: CrawlerOptions;
   vietnamworks?: CrawlerOptions;
   topcv?: CrawlerOptions;
+  itviec?: CrawlerOptions;
   saveToDb?: boolean;
 }
 
@@ -58,6 +64,10 @@ export class CrawlService {
         topcv: {
           name: "TopCV",
           description: "Crawl từ topcv.vn - sử dụng Puppeteer để scrape HTML",
+        },
+        itviec: {
+          name: "ITviec",
+          description: "Crawl từ itviec.com - sử dụng Generic Crawler động",
         },
       },
     };
@@ -199,6 +209,52 @@ export class CrawlService {
       this.logger.error(`❌ VietnamWorks crawl failed: ${error}`);
       return {
         source: "vietnamworks",
+        companies: [],
+        companyCount: 0,
+        jobCount: 0,
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+  // Crawl từ ITviec
+  static async crawlITviec(
+    options?: CrawlerOptions & { saveToDb?: boolean },
+  ): Promise<CrawlResult> {
+    this.logger.log("🚀 Starting ITviec crawl (Generic Engine)...");
+    try {
+      const crawler = new ITviecCrawler();
+      const companies = await crawler.crawl(options);
+
+      const jobCount = companies.reduce(
+        (sum: number, c: CompanyInput) => sum + c.jobs.length,
+        0,
+      );
+
+      const result: CrawlResult = {
+        source: "itviec",
+        companies,
+        companyCount: companies.length,
+        jobCount,
+        success: true,
+      };
+
+      if (options?.saveToDb) {
+        const pgResult = await JobsPgService.saveCompanies(companies);
+        result.savedToDb = {
+          inserted: pgResult.inserted,
+          updated: pgResult.updated,
+        };
+      }
+
+      this.logger.log(
+        `✅ ITviec crawl completed: ${companies.length} companies, ${jobCount} jobs`,
+      );
+      return result;
+    } catch (error) {
+      this.logger.error(`❌ ITviec crawl failed: ${error}`);
+      return {
+        source: "itviec",
         companies: [],
         companyCount: 0,
         jobCount: 0,

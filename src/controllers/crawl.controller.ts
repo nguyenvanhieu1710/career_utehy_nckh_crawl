@@ -149,4 +149,45 @@ export class CrawlController {
       });
     }
   }
+
+  // POST /api/crawl/itviec
+  // Body: { url?: string, maxPages?: number, fetchDetail?: boolean, saveToDb?: boolean }
+  static async crawlITviec(req: Request, res: Response) {
+    try {
+      const { url, maxPages, fetchDetail, saveToDb = false } = req.body;
+
+      const result = await CrawlService.crawlITviec({
+        url,
+        maxPages,
+        fetchDetail,
+        saveToDb,
+      });
+
+      if (!result.success) {
+        return res.status(500).json({
+          error: {
+            message: "ITviec crawl failed",
+            details: result.error,
+          },
+        });
+      }
+
+      res.status(200).json({
+        data: {
+          source: result.source,
+          companyCount: result.companyCount,
+          jobCount: result.jobCount,
+          savedToDb: result.savedToDb,
+        },
+        message: "ITviec crawl completed successfully",
+      });
+    } catch (error) {
+      res.status(500).json({
+        error: {
+          message: "Failed to crawl ITviec",
+          details: (error as Error).message,
+        },
+      });
+    }
+  }
 }
