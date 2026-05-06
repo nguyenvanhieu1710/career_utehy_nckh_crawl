@@ -56,7 +56,7 @@ export class CrawlService {
     details: Record<string, { name: string; description: string }>;
   } {
     return {
-      sources: ["jobgo", "vietnamworks", "topcv"],
+      sources: ["jobgo", "vietnamworks", "topcv", "itviec", "vieclam24h"],
       details: {
         jobgo: {
           name: "JobGo",

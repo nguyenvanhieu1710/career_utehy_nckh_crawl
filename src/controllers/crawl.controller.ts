@@ -6,12 +6,12 @@ export class CrawlController {
   static async getSources(req: Request, res: Response) {
     try {
       const sources = CrawlService.getAvailableSources();
-      res.status(200).json({
+      return res.status(200).json({
         data: sources,
         message: "Available crawl sources",
       });
     } catch (error) {
-      res.status(500).json({
+      return res.status(500).json({
         error: {
           message: "Failed to get crawl sources",
           details: (error as Error).message,
@@ -31,34 +31,35 @@ export class CrawlController {
         saveToDb = false,
       } = req.body;
 
-      const result = await CrawlService.crawlJobGo({
+      // [DEVELOPER MODE: SYNC - Un-comment below to see full JSON results in Postman]
+      /*
+      const result = await CrawlService.crawlJobGo({ url, maxPages, fetchDetail, saveToDb });
+      return res.status(200).json(result);
+      */
+
+      // [PRODUCTION MODE: ASYNC]
+      CrawlService.crawlJobGo({
         url,
         maxPages,
         fetchDetail,
         saveToDb,
+      }).then(result => {
+        if (result.success) {
+          console.log(`[Async] JobGo crawl completed: ${result.jobCount} jobs found.`);
+        } else {
+          console.error(`[Async] JobGo crawl failed: ${result.error}`);
+        }
+      }).catch(err => {
+        console.error(`[Async] Unhandled error in JobGo crawl: ${err.message}`);
       });
 
-      if (!result.success) {
-        return res.status(500).json({
-          error: {
-            message: "JobGo crawl failed",
-            details: result.error,
-          },
-        });
-      }
-
-      res.status(200).json({
-        data: {
-          source: result.source,
-          companyCount: result.companyCount,
-          jobCount: result.jobCount,
-          savedToDb: result.savedToDb,
-          companies: result.companies,
-        },
-        message: "JobGo crawl completed successfully",
+      // Return immediately
+      return res.status(202).json({
+        message: "JobGo crawl triggered successfully and is running in background",
+        status: "accepted"
       });
     } catch (error) {
-      res.status(500).json({
+      return res.status(500).json({
         error: {
           message: "Failed to crawl JobGo",
           details: (error as Error).message,
@@ -73,34 +74,35 @@ export class CrawlController {
     try {
       const { url, maxPages, fetchDetail, saveToDb = false } = req.body;
 
-      const result = await CrawlService.crawlVietnamWorks({
+      // [DEVELOPER MODE: SYNC - Un-comment below to see full JSON results in Postman]
+      /*
+      const result = await CrawlService.crawlVietnamWorks({ url, maxPages, fetchDetail, saveToDb });
+      return res.status(200).json(result);
+      */
+
+      // [PRODUCTION MODE: ASYNC]
+      CrawlService.crawlVietnamWorks({
         url,
         maxPages,
         fetchDetail,
         saveToDb,
+      }).then(result => {
+        if (result.success) {
+          console.log(`[Async] VietnamWorks crawl completed: ${result.jobCount} jobs found.`);
+        } else {
+          console.error(`[Async] VietnamWorks crawl failed: ${result.error}`);
+        }
+      }).catch(err => {
+        console.error(`[Async] Unhandled error in VietnamWorks crawl: ${err.message}`);
       });
 
-      if (!result.success) {
-        return res.status(500).json({
-          error: {
-            message: "VietnamWorks crawl failed",
-            details: result.error,
-          },
-        });
-      }
-
-      res.status(200).json({
-        data: {
-          source: result.source,
-          companyCount: result.companyCount,
-          jobCount: result.jobCount,
-          savedToDb: result.savedToDb,
-          companies: result.companies,
-        },
-        message: "VietnamWorks crawl completed successfully",
+      // Return immediately
+      return res.status(202).json({
+        message: "VietnamWorks crawl triggered successfully and is running in background",
+        status: "accepted"
       });
     } catch (error) {
-      res.status(500).json({
+      return res.status(500).json({
         error: {
           message: "Failed to crawl VietnamWorks",
           details: (error as Error).message,
@@ -115,34 +117,35 @@ export class CrawlController {
     try {
       const { url, maxPages, fetchDetail, saveToDb = false } = req.body;
 
-      const result = await CrawlService.crawlTopCV({
+      // [DEVELOPER MODE: SYNC - Un-comment below to see full JSON results in Postman]
+      /*
+      const result = await CrawlService.crawlTopCV({ url, maxPages, fetchDetail, saveToDb });
+      return res.status(200).json(result);
+      */
+
+      // [PRODUCTION MODE: ASYNC]
+      CrawlService.crawlTopCV({
         url,
         maxPages,
         fetchDetail,
         saveToDb,
+      }).then(result => {
+        if (result.success) {
+          console.log(`[Async] TopCV crawl completed: ${result.jobCount} jobs found.`);
+        } else {
+          console.error(`[Async] TopCV crawl failed: ${result.error}`);
+        }
+      }).catch(err => {
+        console.error(`[Async] Unhandled error in TopCV crawl: ${err.message}`);
       });
 
-      if (!result.success) {
-        return res.status(500).json({
-          error: {
-            message: "TopCV crawl failed",
-            details: result.error,
-          },
-        });
-      }
-
-      res.status(200).json({
-        data: {
-          source: result.source,
-          companyCount: result.companyCount,
-          jobCount: result.jobCount,
-          savedToDb: result.savedToDb,
-          companies: result.companies,
-        },
-        message: "TopCV crawl completed successfully",
+      // Return immediately
+      return res.status(202).json({
+        message: "TopCV crawl triggered successfully and is running in background",
+        status: "accepted"
       });
     } catch (error) {
-      res.status(500).json({
+      return res.status(500).json({
         error: {
           message: "Failed to crawl TopCV",
           details: (error as Error).message,
@@ -157,34 +160,35 @@ export class CrawlController {
     try {
       const { url, maxPages, fetchDetail, saveToDb = false } = req.body;
 
-      const result = await CrawlService.crawlITviec({
+      // [DEVELOPER MODE: SYNC - Un-comment below to see full JSON results in Postman]
+      /*
+      const result = await CrawlService.crawlITviec({ url, maxPages, fetchDetail, saveToDb });
+      return res.status(200).json(result);
+      */
+
+      // [PRODUCTION MODE: ASYNC]
+      CrawlService.crawlITviec({
         url,
         maxPages,
         fetchDetail,
         saveToDb,
+      }).then(result => {
+        if (result.success) {
+          console.log(`[Async] ITviec crawl completed: ${result.jobCount} jobs found.`);
+        } else {
+          console.error(`[Async] ITviec crawl failed: ${result.error}`);
+        }
+      }).catch(err => {
+        console.error(`[Async] Unhandled error in ITviec crawl: ${err.message}`);
       });
 
-      if (!result.success) {
-        return res.status(500).json({
-          error: {
-            message: "ITviec crawl failed",
-            details: result.error,
-          },
-        });
-      }
-
-      res.status(200).json({
-        data: {
-          source: result.source,
-          companyCount: result.companyCount,
-          jobCount: result.jobCount,
-          savedToDb: result.savedToDb,
-          companies: result.companies,
-        },
-        message: "ITviec crawl completed successfully",
+      // Return immediately
+      return res.status(202).json({
+        message: "ITviec crawl triggered successfully and is running in background",
+        status: "accepted"
       });
     } catch (error) {
-      res.status(500).json({
+      return res.status(500).json({
         error: {
           message: "Failed to crawl ITviec",
           details: (error as Error).message,
@@ -205,32 +209,33 @@ export class CrawlController {
         cssConfig,
       } = req.body;
 
-      const result = await CrawlService.crawlVieclam24h({
+      // [DEVELOPER MODE: SYNC - Un-comment below to see full JSON results in Postman]
+      /*
+      const result = await CrawlService.crawlVieclam24h({ url, maxPages, fetchDetail, saveToDb, cssConfig });
+      return res.status(200).json(result);
+      */
+
+      // [PRODUCTION MODE: ASYNC]
+      CrawlService.crawlVieclam24h({
         url,
         maxPages,
         fetchDetail,
         saveToDb,
         cssConfig,
+      }).then(result => {
+        if (result.success) {
+          console.log(`[Async] Vieclam24h crawl completed: ${result.jobCount} jobs found.`);
+        } else {
+          console.error(`[Async] Vieclam24h crawl failed: ${result.error}`);
+        }
+      }).catch(err => {
+        console.error(`[Async] Unhandled error in Vieclam24h crawl: ${err.message}`);
       });
 
-      if (!result.success) {
-        return res.status(500).json({
-          error: {
-            message: "Vieclam24h crawl failed",
-            details: result.error,
-          },
-        });
-      }
-
-      return res.status(200).json({
-        message: "Crawl completed successfully",
-        data: {
-          source: result.source,
-          companyCount: result.companyCount,
-          jobCount: result.jobCount,
-          savedToDb: result.savedToDb,
-          companies: result.companies,
-        },
+      // Return immediately
+      return res.status(202).json({
+        message: "Vieclam24h crawl triggered successfully and is running in background",
+        status: "accepted"
       });
     } catch (error) {
       return res.status(500).json({
@@ -255,53 +260,83 @@ export class CrawlController {
         });
       }
 
-      let result;
       const normalizedSource = source.toLowerCase();
-
-      switch (normalizedSource) {
-        case "jobgo":
-        case "jobsgo":
-          result = await CrawlService.crawlJobGo({ ...payload, saveToDb });
-          break;
-        case "vietnamworks":
-          result = await CrawlService.crawlVietnamWorks({ ...payload, saveToDb });
-          break;
-        case "topcv":
-          result = await CrawlService.crawlTopCV({ ...payload, saveToDb });
-          break;
-        case "itviec":
-          result = await CrawlService.crawlITviec({ ...payload, saveToDb });
-          break;
-        case "vieclam24h":
-          result = await CrawlService.crawlVieclam24h({ ...payload, saveToDb });
-          break;
-        default:
-          return res.status(400).json({
-            error: {
-              message: `Unsupported source: ${source}`,
-              availableSources: CrawlService.getAvailableSources(),
-            },
-          });
-      }
-
-      if (!result.success) {
-        return res.status(500).json({
+      const availableSources = ["jobgo", "jobsgo", "vietnamworks", "topcv", "itviec", "vieclam24h"];
+      
+      if (!availableSources.includes(normalizedSource)) {
+        return res.status(400).json({
           error: {
-            message: `${source} crawl failed`,
-            details: result.error,
+            message: `Unsupported source: ${source}`,
+            availableSources: CrawlService.getAvailableSources(),
           },
         });
       }
 
-      return res.status(200).json({
-        message: `${source} crawl completed successfully`,
-        data: {
-          source: result.source,
-          companyCount: result.companyCount,
-          jobCount: result.jobCount,
-          savedToDb: result.savedToDb,
-          companies: result.companies,
-        },
+      // [DEVELOPER MODE: SYNC DISPATCH - Un-comment below to see full JSON results in Postman]
+      /*
+      let syncResult;
+      switch (normalizedSource) {
+        case "jobgo":
+        case "jobsgo":
+          syncResult = await CrawlService.crawlJobGo({ ...payload, saveToDb });
+          break;
+        case "vietnamworks":
+          syncResult = await CrawlService.crawlVietnamWorks({ ...payload, saveToDb });
+          break;
+        case "topcv":
+          syncResult = await CrawlService.crawlTopCV({ ...payload, saveToDb });
+          break;
+        case "itviec":
+          syncResult = await CrawlService.crawlITviec({ ...payload, saveToDb });
+          break;
+        case "vieclam24h":
+          syncResult = await CrawlService.crawlVieclam24h({ ...payload, saveToDb });
+          break;
+      }
+      return res.status(200).json(syncResult);
+      */
+
+      // [PRODUCTION MODE: ASYNC DISPATCH]
+      // Task to run in background
+      const runCrawl = async () => {
+        try {
+          let asyncResult;
+          switch (normalizedSource) {
+            case "jobgo":
+            case "jobsgo":
+              asyncResult = await CrawlService.crawlJobGo({ ...payload, saveToDb });
+              break;
+            case "vietnamworks":
+              asyncResult = await CrawlService.crawlVietnamWorks({ ...payload, saveToDb });
+              break;
+            case "topcv":
+              asyncResult = await CrawlService.crawlTopCV({ ...payload, saveToDb });
+              break;
+            case "itviec":
+              asyncResult = await CrawlService.crawlITviec({ ...payload, saveToDb });
+              break;
+            case "vieclam24h":
+              asyncResult = await CrawlService.crawlVieclam24h({ ...payload, saveToDb });
+              break;
+          }
+          
+          if (asyncResult?.success) {
+            console.log(`[Async Dispatch] ${source} crawl completed: ${asyncResult.jobCount} jobs found.`);
+          } else {
+            console.error(`[Async Dispatch] ${source} crawl failed: ${asyncResult?.error}`);
+          }
+        } catch (err) {
+          console.error(`[Async Dispatch] Critical error in ${source} crawl: ${(err as Error).message}`);
+        }
+      };
+
+      // Execute in background
+      runCrawl();
+
+      // Return immediately
+      return res.status(202).json({
+        message: `${source} crawl triggered successfully via dispatch and is running in background`,
+        status: "accepted"
       });
     } catch (error) {
       return res.status(500).json({
