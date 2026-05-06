@@ -1,0 +1,45 @@
+### Variables
+@baseUrl = http://localhost:3001/api
+
+### Health Check
+GET {{baseUrl}}/health
+
+### Get Jobs from DB
+GET {{baseUrl}}/jobs?page=1&limit=10&source=itviec
+
+### Get Available Sources
+GET {{baseUrl}}/crawl/sources
+
+### Crawl JobGo
+# @name crawlJobGo
+POST {{baseUrl}}/crawl/jobgo
+Content-Type: application/json
+
+{
+    "url": "https://jobsgo.vn/viec-lam.html",
+    "maxPages": 2,
+    "fetchDetail": true,
+    "saveToDb": true
+}
+
+### Crawl ITviec
+# @name crawlITviec
+POST {{baseUrl}}/crawl/itviec
+Content-Type: application/json
+
+{
+    "maxPages": 1,
+    "fetchDetail": true,
+    "saveToDb": true
+}
+
+### Crawl Vieclam24h
+# @name crawlVieclam24h
+POST {{baseUrl}}/crawl/vieclam24h
+Content-Type: application/json
+
+{
+    "maxPages": 1,
+    "fetchDetail": true,
+    "saveToDb": true
+}

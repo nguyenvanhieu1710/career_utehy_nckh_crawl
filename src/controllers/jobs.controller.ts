@@ -8,6 +8,7 @@ export class JobsController {
       const queryParams = {
         keyword: req.query.keyword as string,
         location: req.query.location as string,
+        source: req.query.source as string,
         page: parseInt(req.query.page as string) || 1,
         limit: parseInt(req.query.limit as string) || 10,
       };

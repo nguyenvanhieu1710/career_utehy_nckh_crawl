@@ -26,7 +26,6 @@ export class CrawlController {
     try {
       const {
         url,
-        industries,
         maxPages,
         fetchDetail = false,
         saveToDb = false,
@@ -34,7 +33,6 @@ export class CrawlController {
 
       const result = await CrawlService.crawlJobGo({
         url,
-        industries,
         maxPages,
         fetchDetail,
         saveToDb,
@@ -55,6 +53,7 @@ export class CrawlController {
           companyCount: result.companyCount,
           jobCount: result.jobCount,
           savedToDb: result.savedToDb,
+          companies: result.companies,
         },
         message: "JobGo crawl completed successfully",
       });
@@ -96,6 +95,7 @@ export class CrawlController {
           companyCount: result.companyCount,
           jobCount: result.jobCount,
           savedToDb: result.savedToDb,
+          companies: result.companies,
         },
         message: "VietnamWorks crawl completed successfully",
       });
@@ -137,6 +137,7 @@ export class CrawlController {
           companyCount: result.companyCount,
           jobCount: result.jobCount,
           savedToDb: result.savedToDb,
+          companies: result.companies,
         },
         message: "TopCV crawl completed successfully",
       });

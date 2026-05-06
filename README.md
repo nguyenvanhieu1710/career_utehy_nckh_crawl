@@ -4,10 +4,9 @@ Hệ thống thu thập và quản lý thông tin tuyển dụng từ các websi
 
 ## 🚀 Tính năng chính
 
-- **Multi-source Crawling**: Hỗ trợ crawl dữ liệu từ nhiều nền tảng lớn (JobsGo, VietnamWorks, TopCV).
+- **Multi-source Crawling**: Hỗ trợ crawl dữ liệu từ nhiều nền tảng lớn (JobsGo, VietnamWorks, TopCV, ITviec, Vieclam24h).
 - **Intelligent Parsing**: Tự động phân tích và trích xuất thông tin công việc, công ty, mức lương và kỹ năng.
 - **RESTful API**: API tiêu chuẩn cho việc điều hướng tiến trình crawl và tra cứu dữ liệu.
-- **Data Management**: Lưu trữ dữ liệu linh hoạt, kiến trúc chuẩn hóa sẵn sàng cho việc tích hợp AI/ML (Vector Embeddings).
 
 ## 🛠️ Cài đặt & Sử dụng
 
@@ -25,11 +24,10 @@ Hệ thống thu thập và quản lý thông tin tuyển dụng từ các websi
    ```
 
 3. **Configure environment variables:**
-   Create a `.env` file in the root directory:
+   Copy file `.env.example` to `.env` and edit the values:
 
-   ```env
-   PORT=3000
-   MONGODB_URI=
+   ```bash
+   cp .env.example .env
    ```
 
 4. **Build the project:**
@@ -55,18 +53,22 @@ Hệ thống thu thập và quản lý thông tin tuyển dụng từ các websi
 **Các endpoint chính:**
 
 - `GET /api/health`: Health check server
-- `GET /api/jobs`: Tra cứu danh sách việc làm (tìm kiếm, phân trang)
+- `GET /api/jobs`: Tra cứu danh sách việc làm (tìm kiếm, phân trang, lọc theo nguồn)
 - `POST /api/crawl/jobgo`: Trigger tiến trình crawl dữ liệu từ JobsGo
 - `POST /api/crawl/vietnamworks`: Trigger tiến trình crawl dữ liệu từ VietnamWorks
 - `POST /api/crawl/topcv`: Trigger tiến trình crawl dữ liệu từ TopCV
+- `POST /api/crawl/itviec`: Trigger tiến trình crawl dữ liệu từ ITviec
+- `POST /api/crawl/vieclam24h`: Trigger tiến trình crawl dữ liệu từ Vieclam24h
 - `POST /api/crawl/all`: Crawl từ tất cả các nguồn cùng lúc
+
+**Có thể dùng REST Client để test API**
+Sử dụng Extension **REST Client** trên VS Code để chạy các mẫu request có sẵn trong file `api.http`.
 
 ## 📁 Cấu trúc thư mục (MVC)
 
 ```text
 career_utehy_nckh_crawl/
 ├── package.json
-├── API crawl careers.postman_collection.json
 ├── src/
 │   ├── app.ts                 # Express app configuration
 │   ├── server.ts              # Entry point
@@ -75,6 +77,7 @@ career_utehy_nckh_crawl/
 │   ├── services/              # Business logic (Crawl, Save DB, ...)
 │   ├── crawlers/              # Logic cào dữ liệu cho từng nguồn riêng biệt
 │   ├── models/                # Database Schemas (Mongoose/TypeORM)
+│   ├── entities/              # Database Entities (TypeORM)
 │   ├── routes/                # Khai báo các API Endpoints
 │   └── interfaces/            # TypeScript Type & Interface definitions
 ```

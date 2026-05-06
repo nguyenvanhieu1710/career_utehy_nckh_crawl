@@ -16,7 +16,6 @@ router.get("/sources", CrawlController.getSources);
  * @access  Public
  * @body    {
  *            url?: string,           // Base URL, mặc định: https://jobsgo.vn
- *            industries?: string[],  // Danh sách ngành nghề cần crawl
  *            maxPages?: number,      // Số trang tối đa mỗi ngành
  *            saveToDb?: boolean      // Có lưu vào database không
  *          }

@@ -116,6 +116,7 @@ export class JobsPgService {
   static async getJobs(queryParams: {
     keyword?: string;
     location?: string;
+    source?: string;
     page?: number;
     limit?: number;
   }) {
@@ -123,11 +124,12 @@ export class JobsPgService {
       return { jobs: [], total: 0, page: 1, limit: 10, totalPages: 0 };
     }
 
-    const { keyword, location, page = 1, limit = 10 } = queryParams;
+    const { keyword, location, source, page = 1, limit = 10 } = queryParams;
     const jobRepo = AppDataSource.getRepository(JobEntity);
 
     const queryBuilder = jobRepo.createQueryBuilder("job")
-      .leftJoinAndSelect("job.company", "company");
+      .leftJoinAndSelect("job.company", "company")
+      .orderBy("job.created_at", "DESC");
 
     if (keyword) {
       queryBuilder.andWhere("job.title ILIKE :keyword OR company.name ILIKE :keyword", { keyword: `%${keyword}%` });
@@ -135,6 +137,10 @@ export class JobsPgService {
 
     if (location) {
       queryBuilder.andWhere("job.location ILIKE :location", { location: `%${location}%` });
+    }
+
+    if (source) {
+      queryBuilder.andWhere("job.url_source ILIKE :source", { source: `%${source}%` });
     }
 
     const pageNum = parseInt(String(page), 10);
