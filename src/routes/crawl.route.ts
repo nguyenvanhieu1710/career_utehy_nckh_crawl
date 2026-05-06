@@ -75,4 +75,11 @@ router.post("/itviec", CrawlController.crawlITviec);
  */
 router.post("/vieclam24h", CrawlController.crawlVieclam24h);
 
+/**
+ * @route   POST /api/crawl/push-job
+ * @desc    Centralized dispatcher to route crawl requests based on source
+ * @access  Public
+ */
+router.post("/push-job", CrawlController.dispatch);
+
 export default router;

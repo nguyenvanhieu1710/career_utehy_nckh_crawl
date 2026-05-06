@@ -241,4 +241,75 @@ export class CrawlController {
       });
     }
   }
+  // POST /api/crawl/push-job - Centralized dispatcher
+  static async dispatch(req: Request, res: Response) {
+    try {
+      const { source, ...payload } = req.body;
+      const saveToDb = payload.saveToDb !== undefined ? payload.saveToDb : true;
+
+      if (!source) {
+        return res.status(400).json({
+          error: {
+            message: "Missing 'source' field in request body",
+          },
+        });
+      }
+
+      let result;
+      const normalizedSource = source.toLowerCase();
+
+      switch (normalizedSource) {
+        case "jobgo":
+        case "jobsgo":
+          result = await CrawlService.crawlJobGo({ ...payload, saveToDb });
+          break;
+        case "vietnamworks":
+          result = await CrawlService.crawlVietnamWorks({ ...payload, saveToDb });
+          break;
+        case "topcv":
+          result = await CrawlService.crawlTopCV({ ...payload, saveToDb });
+          break;
+        case "itviec":
+          result = await CrawlService.crawlITviec({ ...payload, saveToDb });
+          break;
+        case "vieclam24h":
+          result = await CrawlService.crawlVieclam24h({ ...payload, saveToDb });
+          break;
+        default:
+          return res.status(400).json({
+            error: {
+              message: `Unsupported source: ${source}`,
+              availableSources: CrawlService.getAvailableSources(),
+            },
+          });
+      }
+
+      if (!result.success) {
+        return res.status(500).json({
+          error: {
+            message: `${source} crawl failed`,
+            details: result.error,
+          },
+        });
+      }
+
+      return res.status(200).json({
+        message: `${source} crawl completed successfully`,
+        data: {
+          source: result.source,
+          companyCount: result.companyCount,
+          jobCount: result.jobCount,
+          savedToDb: result.savedToDb,
+          companies: result.companies,
+        },
+      });
+    } catch (error) {
+      return res.status(500).json({
+        error: {
+          message: "Internal server error during dispatch",
+          details: (error as Error).message,
+        },
+      });
+    }
+  }
 }
