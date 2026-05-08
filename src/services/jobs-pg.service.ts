@@ -14,17 +14,19 @@ export class JobsPgService {
     success: boolean;
     inserted: number;
     updated: number;
+    newJobIds: string[];
     error?: any;
   }> {
     if (!AppDataSource.isInitialized) {
       console.warn("PostgreSQL not connected. Skipping Postgres save.");
-      return { success: false, inserted: 0, updated: 0, error: "Not initialized" };
+      return { success: false, inserted: 0, updated: 0, newJobIds: [], error: "Not initialized" };
     }
 
     const companyRepo = AppDataSource.getRepository(CompanyEntity);
     const jobRepo = AppDataSource.getRepository(JobEntity);
     let inserted = 0,
       updated = 0;
+    const newJobIds: string[] = [];
 
     try {
       for (const companyInput of companies) {
@@ -101,15 +103,16 @@ export class JobsPgService {
               slug: this.truncate(jobInput.slug, 255),
             });
             await jobRepo.save(job);
+            newJobIds.push(job.id);
           }
         }
       }
 
-      console.log(`✅ Saved to PostgreSQL: inserted=${inserted}, updated=${updated}`);
-      return { success: true, inserted, updated };
+      console.log(`✅ Saved to PostgreSQL: inserted=${inserted}, updated=${updated}, newJobs=${newJobIds.length}`);
+      return { success: true, inserted, updated, newJobIds };
     } catch (error) {
       console.error("❌ Error during PostgreSQL bulk save:", error);
-      return { success: false, inserted, updated, error: (error as Error).message };
+      return { success: false, inserted, updated, newJobIds, error: (error as Error).message };
     }
   }
 

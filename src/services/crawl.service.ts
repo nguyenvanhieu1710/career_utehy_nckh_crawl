@@ -44,6 +44,7 @@ export interface CrawlResult {
   savedToDb?: {
     inserted: number;
     updated: number;
+    newJobIds?: string[];
   };
 }
 
@@ -113,6 +114,7 @@ export class CrawlService {
         result.savedToDb = {
           inserted: pgResult.inserted, // Switch to mongoResult.inserted if using Mongo
           updated: pgResult.updated, // Switch to mongoResult.updated if using Mongo
+          newJobIds: pgResult.newJobIds,
         };
       }
 
@@ -163,6 +165,7 @@ export class CrawlService {
         result.savedToDb = {
           inserted: pgResult.inserted,
           updated: pgResult.updated,
+          newJobIds: pgResult.newJobIds,
         };
       }
 
@@ -209,6 +212,7 @@ export class CrawlService {
         result.savedToDb = {
           inserted: pgResult.inserted,
           updated: pgResult.updated,
+          newJobIds: pgResult.newJobIds,
         };
       }
 
@@ -255,6 +259,7 @@ export class CrawlService {
         result.savedToDb = {
           inserted: pgResult.inserted,
           updated: pgResult.updated,
+          newJobIds: pgResult.newJobIds,
         };
       }
 
@@ -301,6 +306,7 @@ export class CrawlService {
         result.savedToDb = {
           inserted: pgResult.inserted,
           updated: pgResult.updated,
+          newJobIds: pgResult.newJobIds,
         };
       }
 

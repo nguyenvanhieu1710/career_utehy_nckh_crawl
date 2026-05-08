@@ -20,8 +20,51 @@ export class CrawlController {
     }
   }
 
+  // Helper method to handle callback logic
+  private static async _handleCallback(
+    source: string,
+    result: any,
+    callbackUrl?: string,
+  ) {
+    if (result.success) {
+      console.log(
+        `[Async] ${source} crawl completed: ${result.jobCount} jobs found.`,
+      );
+
+      // Trigger Callback if provided and new jobs exist
+      if (
+        callbackUrl &&
+        result.savedToDb?.newJobIds &&
+        result.savedToDb.newJobIds.length > 0
+      ) {
+        try {
+          console.log(
+            `[Callback] Sending notification to ${callbackUrl} for ${result.savedToDb.newJobIds.length} new jobs...`,
+          );
+          await fetch(callbackUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              source: source,
+              newJobIds: result.savedToDb.newJobIds,
+              timestamp: new Date().toISOString(),
+            }),
+          });
+          console.log(`[Callback] Successfully notified ${callbackUrl}`);
+        } catch (cbErr) {
+          console.error(
+            `[Callback] Failed to notify ${callbackUrl}:`,
+            (cbErr as Error).message,
+          );
+        }
+      }
+    } else {
+      console.error(`[Async] ${source} crawl failed: ${result.error}`);
+    }
+  }
+
   // POST /api/crawl/jobgo - Crawl từ JobGo
-  // Body: { url?: string, industries?: string[], maxPages?: number, fetchDetail?: boolean, saveToDb?: boolean }
+  // Body: { url?: string, industries?: string[], maxPages?: number, fetchDetail?: boolean, saveToDb?: boolean, callbackUrl?: string }
   static async crawlJobGo(req: Request, res: Response) {
     try {
       const {
@@ -29,6 +72,7 @@ export class CrawlController {
         maxPages,
         fetchDetail = false,
         saveToDb = false,
+        callbackUrl,
       } = req.body;
 
       // [DEVELOPER MODE: SYNC - Un-comment below to see full JSON results in Postman]
@@ -43,20 +87,22 @@ export class CrawlController {
         maxPages,
         fetchDetail,
         saveToDb,
-      }).then(result => {
-        if (result.success) {
-          console.log(`[Async] JobGo crawl completed: ${result.jobCount} jobs found.`);
-        } else {
-          console.error(`[Async] JobGo crawl failed: ${result.error}`);
-        }
-      }).catch(err => {
-        console.error(`[Async] Unhandled error in JobGo crawl: ${err.message}`);
-      });
+      })
+        .then((result) => {
+          CrawlController._handleCallback("jobgo", result, callbackUrl);
+        })
+        .catch((err) => {
+          console.error(
+            `[Async] Unhandled error in JobGo crawl: ${err.message}`,
+          );
+        });
 
       // Return immediately
       return res.status(202).json({
-        message: "JobGo crawl triggered successfully and is running in background",
-        status: "accepted"
+        message:
+          "JobGo crawl triggered successfully and is running in background",
+        status: "accepted",
+        callbackRegistered: !!callbackUrl,
       });
     } catch (error) {
       return res.status(500).json({
@@ -69,10 +115,16 @@ export class CrawlController {
   }
 
   // POST /api/crawl/vietnamworks - Crawl từ VietnamWorks
-  // Body: { url?: string, maxPages?: number, fetchDetail?: boolean, saveToDb?: boolean }
+  // Body: { url?: string, maxPages?: number, fetchDetail?: boolean, saveToDb?: boolean, callbackUrl?: string }
   static async crawlVietnamWorks(req: Request, res: Response) {
     try {
-      const { url, maxPages, fetchDetail, saveToDb = false } = req.body;
+      const {
+        url,
+        maxPages,
+        fetchDetail,
+        saveToDb = false,
+        callbackUrl,
+      } = req.body;
 
       // [DEVELOPER MODE: SYNC - Un-comment below to see full JSON results in Postman]
       /*
@@ -86,20 +138,22 @@ export class CrawlController {
         maxPages,
         fetchDetail,
         saveToDb,
-      }).then(result => {
-        if (result.success) {
-          console.log(`[Async] VietnamWorks crawl completed: ${result.jobCount} jobs found.`);
-        } else {
-          console.error(`[Async] VietnamWorks crawl failed: ${result.error}`);
-        }
-      }).catch(err => {
-        console.error(`[Async] Unhandled error in VietnamWorks crawl: ${err.message}`);
-      });
+      })
+        .then((result) => {
+          CrawlController._handleCallback("vietnamworks", result, callbackUrl);
+        })
+        .catch((err) => {
+          console.error(
+            `[Async] Unhandled error in VietnamWorks crawl: ${err.message}`,
+          );
+        });
 
       // Return immediately
       return res.status(202).json({
-        message: "VietnamWorks crawl triggered successfully and is running in background",
-        status: "accepted"
+        message:
+          "VietnamWorks crawl triggered successfully and is running in background",
+        status: "accepted",
+        callbackRegistered: !!callbackUrl,
       });
     } catch (error) {
       return res.status(500).json({
@@ -112,10 +166,16 @@ export class CrawlController {
   }
 
   // POST /api/crawl/topcv
-  // Body: { url?: string, saveToDb?: boolean }
+  // Body: { url?: string, saveToDb?: boolean, callbackUrl?: string }
   static async crawlTopCV(req: Request, res: Response) {
     try {
-      const { url, maxPages, fetchDetail, saveToDb = false } = req.body;
+      const {
+        url,
+        maxPages,
+        fetchDetail,
+        saveToDb = false,
+        callbackUrl,
+      } = req.body;
 
       // [DEVELOPER MODE: SYNC - Un-comment below to see full JSON results in Postman]
       /*
@@ -129,20 +189,22 @@ export class CrawlController {
         maxPages,
         fetchDetail,
         saveToDb,
-      }).then(result => {
-        if (result.success) {
-          console.log(`[Async] TopCV crawl completed: ${result.jobCount} jobs found.`);
-        } else {
-          console.error(`[Async] TopCV crawl failed: ${result.error}`);
-        }
-      }).catch(err => {
-        console.error(`[Async] Unhandled error in TopCV crawl: ${err.message}`);
-      });
+      })
+        .then((result) => {
+          CrawlController._handleCallback("topcv", result, callbackUrl);
+        })
+        .catch((err) => {
+          console.error(
+            `[Async] Unhandled error in TopCV crawl: ${err.message}`,
+          );
+        });
 
       // Return immediately
       return res.status(202).json({
-        message: "TopCV crawl triggered successfully and is running in background",
-        status: "accepted"
+        message:
+          "TopCV crawl triggered successfully and is running in background",
+        status: "accepted",
+        callbackRegistered: !!callbackUrl,
       });
     } catch (error) {
       return res.status(500).json({
@@ -155,10 +217,16 @@ export class CrawlController {
   }
 
   // POST /api/crawl/itviec
-  // Body: { url?: string, maxPages?: number, fetchDetail?: boolean, saveToDb?: boolean }
+  // Body: { url?: string, maxPages?: number, fetchDetail?: boolean, saveToDb?: boolean, callbackUrl?: string }
   static async crawlITviec(req: Request, res: Response) {
     try {
-      const { url, maxPages, fetchDetail, saveToDb = false } = req.body;
+      const {
+        url,
+        maxPages,
+        fetchDetail,
+        saveToDb = false,
+        callbackUrl,
+      } = req.body;
 
       // [DEVELOPER MODE: SYNC - Un-comment below to see full JSON results in Postman]
       /*
@@ -172,20 +240,22 @@ export class CrawlController {
         maxPages,
         fetchDetail,
         saveToDb,
-      }).then(result => {
-        if (result.success) {
-          console.log(`[Async] ITviec crawl completed: ${result.jobCount} jobs found.`);
-        } else {
-          console.error(`[Async] ITviec crawl failed: ${result.error}`);
-        }
-      }).catch(err => {
-        console.error(`[Async] Unhandled error in ITviec crawl: ${err.message}`);
-      });
+      })
+        .then((result) => {
+          CrawlController._handleCallback("itviec", result, callbackUrl);
+        })
+        .catch((err) => {
+          console.error(
+            `[Async] Unhandled error in ITviec crawl: ${err.message}`,
+          );
+        });
 
       // Return immediately
       return res.status(202).json({
-        message: "ITviec crawl triggered successfully and is running in background",
-        status: "accepted"
+        message:
+          "ITviec crawl triggered successfully and is running in background",
+        status: "accepted",
+        callbackRegistered: !!callbackUrl,
       });
     } catch (error) {
       return res.status(500).json({
@@ -198,7 +268,7 @@ export class CrawlController {
   }
 
   // POST /api/crawl/vieclam24h
-  // Body: { url?: string, maxPages?: number, fetchDetail?: boolean, saveToDb?: boolean, cssConfig: CrawlerCssConfig }
+  // Body: { url?: string, maxPages?: number, fetchDetail?: boolean, saveToDb?: boolean, cssConfig: CrawlerCssConfig, callbackUrl?: string }
   static async crawlVieclam24h(req: Request, res: Response) {
     try {
       const {
@@ -207,6 +277,7 @@ export class CrawlController {
         fetchDetail,
         saveToDb = false,
         cssConfig,
+        callbackUrl,
       } = req.body;
 
       // [DEVELOPER MODE: SYNC - Un-comment below to see full JSON results in Postman]
@@ -222,20 +293,22 @@ export class CrawlController {
         fetchDetail,
         saveToDb,
         cssConfig,
-      }).then(result => {
-        if (result.success) {
-          console.log(`[Async] Vieclam24h crawl completed: ${result.jobCount} jobs found.`);
-        } else {
-          console.error(`[Async] Vieclam24h crawl failed: ${result.error}`);
-        }
-      }).catch(err => {
-        console.error(`[Async] Unhandled error in Vieclam24h crawl: ${err.message}`);
-      });
+      })
+        .then((result) => {
+          CrawlController._handleCallback("vieclam24h", result, callbackUrl);
+        })
+        .catch((err) => {
+          console.error(
+            `[Async] Unhandled error in Vieclam24h crawl: ${err.message}`,
+          );
+        });
 
       // Return immediately
       return res.status(202).json({
-        message: "Vieclam24h crawl triggered successfully and is running in background",
-        status: "accepted"
+        message:
+          "Vieclam24h crawl triggered successfully and is running in background",
+        status: "accepted",
+        callbackRegistered: !!callbackUrl,
       });
     } catch (error) {
       return res.status(500).json({
@@ -249,7 +322,7 @@ export class CrawlController {
   // POST /api/crawl/push-job - Centralized dispatcher
   static async dispatch(req: Request, res: Response) {
     try {
-      const { source, ...payload } = req.body;
+      const { source, callbackUrl, ...payload } = req.body;
       const saveToDb = payload.saveToDb !== undefined ? payload.saveToDb : true;
 
       if (!source) {
@@ -261,8 +334,15 @@ export class CrawlController {
       }
 
       const normalizedSource = source.toLowerCase();
-      const availableSources = ["jobgo", "jobsgo", "vietnamworks", "topcv", "itviec", "vieclam24h"];
-      
+      const availableSources = [
+        "jobgo",
+        "jobsgo",
+        "vietnamworks",
+        "topcv",
+        "itviec",
+        "vieclam24h",
+      ];
+
       if (!availableSources.includes(normalizedSource)) {
         return res.status(400).json({
           error: {
@@ -272,7 +352,7 @@ export class CrawlController {
         });
       }
 
-      // [DEVELOPER MODE: SYNC DISPATCH - Un-comment below to see full JSON results in Postman]
+      // [DEVELOPER MODE: SYNC - Un-comment below to see full JSON results in Postman]
       /*
       let syncResult;
       switch (normalizedSource) {
@@ -304,29 +384,44 @@ export class CrawlController {
           switch (normalizedSource) {
             case "jobgo":
             case "jobsgo":
-              asyncResult = await CrawlService.crawlJobGo({ ...payload, saveToDb });
+              asyncResult = await CrawlService.crawlJobGo({
+                ...payload,
+                saveToDb,
+              });
               break;
             case "vietnamworks":
-              asyncResult = await CrawlService.crawlVietnamWorks({ ...payload, saveToDb });
+              asyncResult = await CrawlService.crawlVietnamWorks({
+                ...payload,
+                saveToDb,
+              });
               break;
             case "topcv":
-              asyncResult = await CrawlService.crawlTopCV({ ...payload, saveToDb });
+              asyncResult = await CrawlService.crawlTopCV({
+                ...payload,
+                saveToDb,
+              });
               break;
             case "itviec":
-              asyncResult = await CrawlService.crawlITviec({ ...payload, saveToDb });
+              asyncResult = await CrawlService.crawlITviec({
+                ...payload,
+                saveToDb,
+              });
               break;
             case "vieclam24h":
-              asyncResult = await CrawlService.crawlVieclam24h({ ...payload, saveToDb });
+              asyncResult = await CrawlService.crawlVieclam24h({
+                ...payload,
+                saveToDb,
+              });
               break;
           }
-          
-          if (asyncResult?.success) {
-            console.log(`[Async Dispatch] ${source} crawl completed: ${asyncResult.jobCount} jobs found.`);
-          } else {
-            console.error(`[Async Dispatch] ${source} crawl failed: ${asyncResult?.error}`);
+
+          if (asyncResult) {
+            CrawlController._handleCallback(normalizedSource, asyncResult, callbackUrl);
           }
         } catch (err) {
-          console.error(`[Async Dispatch] Critical error in ${source} crawl: ${(err as Error).message}`);
+          console.error(
+            `[Async Dispatch] Critical error in ${source} crawl: ${(err as Error).message}`,
+          );
         }
       };
 
@@ -336,7 +431,8 @@ export class CrawlController {
       // Return immediately
       return res.status(202).json({
         message: `${source} crawl triggered successfully via dispatch and is running in background`,
-        status: "accepted"
+        status: "accepted",
+        callbackRegistered: !!callbackUrl,
       });
     } catch (error) {
       return res.status(500).json({
