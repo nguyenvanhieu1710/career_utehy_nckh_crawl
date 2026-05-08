@@ -25,41 +25,57 @@ export class CrawlController {
     source: string,
     result: any,
     callbackUrl?: string,
+    historyId?: string,
   ) {
-    if (result.success) {
-      console.log(
-        `[Async] ${source} crawl completed: ${result.jobCount} jobs found.`,
-      );
+    if (!callbackUrl) return;
 
-      // Trigger Callback if provided and new jobs exist
-      if (
-        callbackUrl &&
-        result.savedToDb?.newJobIds &&
-        result.savedToDb.newJobIds.length > 0
-      ) {
-        try {
-          console.log(
-            `[Callback] Sending notification to ${callbackUrl} for ${result.savedToDb.newJobIds.length} new jobs...`,
-          );
-          await fetch(callbackUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              source: source,
-              newJobIds: result.savedToDb.newJobIds,
-              timestamp: new Date().toISOString(),
-            }),
-          });
-          console.log(`[Callback] Successfully notified ${callbackUrl}`);
-        } catch (cbErr) {
-          console.error(
-            `[Callback] Failed to notify ${callbackUrl}:`,
-            (cbErr as Error).message,
-          );
-        }
+    try {
+      const payload: any = {
+        source: source,
+        historyId: historyId,
+        timestamp: new Date().toISOString(),
+      };
+
+      if (result.success) {
+        console.log(
+          `[Callback] ${source} crawl completed: ${result.jobCount} jobs found.`,
+        );
+        payload.status = "completed";
+        payload.newJobIds = result.savedToDb?.newJobIds || [];
+        payload.statistics = {
+          total: result.jobCount || 0,
+          inserted: result.savedToDb?.inserted || 0,
+          updated: result.savedToDb?.updated || 0,
+          failed: (result.savedToDb as any)?.failed || 0,
+          skipped: (result.savedToDb as any)?.skipped || 0,
+        };
+      } else {
+        console.error(`[Callback] ${source} crawl failed: ${result.error}`);
+        payload.status = "failed";
+        payload.newJobIds = [];
+        payload.error = result.error || "Unknown error occurred during crawl";
       }
-    } else {
-      console.error(`[Async] ${source} crawl failed: ${result.error}`);
+
+      console.log(`[Callback] Sending notification to ${callbackUrl}...`);
+      const response = await fetch(callbackUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (response.ok) {
+        console.log(`[Callback] Successfully notified ${callbackUrl}`);
+      } else {
+        const errorText = await response.text();
+        console.error(
+          `[Callback] Backend returned error ${response.status}: ${errorText}`,
+        );
+      }
+    } catch (cbErr) {
+      console.error(
+        `[Callback] Failed to notify ${callbackUrl}:`,
+        (cbErr as Error).message,
+      );
     }
   }
 
@@ -73,6 +89,7 @@ export class CrawlController {
         fetchDetail = false,
         saveToDb = false,
         callbackUrl,
+        historyId,
       } = req.body;
 
       // [DEVELOPER MODE: SYNC - Un-comment below to see full JSON results in Postman]
@@ -89,11 +106,22 @@ export class CrawlController {
         saveToDb,
       })
         .then((result) => {
-          CrawlController._handleCallback("jobgo", result, callbackUrl);
+          CrawlController._handleCallback(
+            "jobgo",
+            result,
+            callbackUrl,
+            historyId,
+          );
         })
         .catch((err) => {
           console.error(
             `[Async] Unhandled error in JobGo crawl: ${err.message}`,
+          );
+          CrawlController._handleCallback(
+            "jobgo",
+            { success: false, error: err.message },
+            callbackUrl,
+            historyId,
           );
         });
 
@@ -115,7 +143,7 @@ export class CrawlController {
   }
 
   // POST /api/crawl/vietnamworks - Crawl từ VietnamWorks
-  // Body: { url?: string, maxPages?: number, fetchDetail?: boolean, saveToDb?: boolean, callbackUrl?: string }
+  // Body: { url?: string, maxPages?: number, fetchDetail?: boolean, saveToDb?: boolean, callbackUrl?: string, historyId?: string }
   static async crawlVietnamWorks(req: Request, res: Response) {
     try {
       const {
@@ -124,6 +152,7 @@ export class CrawlController {
         fetchDetail,
         saveToDb = false,
         callbackUrl,
+        historyId,
       } = req.body;
 
       // [DEVELOPER MODE: SYNC - Un-comment below to see full JSON results in Postman]
@@ -140,11 +169,22 @@ export class CrawlController {
         saveToDb,
       })
         .then((result) => {
-          CrawlController._handleCallback("vietnamworks", result, callbackUrl);
+          CrawlController._handleCallback(
+            "vietnamworks",
+            result,
+            callbackUrl,
+            historyId,
+          );
         })
         .catch((err) => {
           console.error(
             `[Async] Unhandled error in VietnamWorks crawl: ${err.message}`,
+          );
+          CrawlController._handleCallback(
+            "vietnamworks",
+            { success: false, error: err.message },
+            callbackUrl,
+            historyId,
           );
         });
 
@@ -166,7 +206,7 @@ export class CrawlController {
   }
 
   // POST /api/crawl/topcv
-  // Body: { url?: string, saveToDb?: boolean, callbackUrl?: string }
+  // Body: { url?: string, saveToDb?: boolean, callbackUrl?: string, historyId?: string }
   static async crawlTopCV(req: Request, res: Response) {
     try {
       const {
@@ -175,6 +215,7 @@ export class CrawlController {
         fetchDetail,
         saveToDb = false,
         callbackUrl,
+        historyId,
       } = req.body;
 
       // [DEVELOPER MODE: SYNC - Un-comment below to see full JSON results in Postman]
@@ -191,11 +232,22 @@ export class CrawlController {
         saveToDb,
       })
         .then((result) => {
-          CrawlController._handleCallback("topcv", result, callbackUrl);
+          CrawlController._handleCallback(
+            "topcv",
+            result,
+            callbackUrl,
+            historyId,
+          );
         })
         .catch((err) => {
           console.error(
             `[Async] Unhandled error in TopCV crawl: ${err.message}`,
+          );
+          CrawlController._handleCallback(
+            "topcv",
+            { success: false, error: err.message },
+            callbackUrl,
+            historyId,
           );
         });
 
@@ -217,7 +269,7 @@ export class CrawlController {
   }
 
   // POST /api/crawl/itviec
-  // Body: { url?: string, maxPages?: number, fetchDetail?: boolean, saveToDb?: boolean, callbackUrl?: string }
+  // Body: { url?: string, maxPages?: number, fetchDetail?: boolean, saveToDb?: boolean, callbackUrl?: string, historyId?: string }
   static async crawlITviec(req: Request, res: Response) {
     try {
       const {
@@ -226,6 +278,7 @@ export class CrawlController {
         fetchDetail,
         saveToDb = false,
         callbackUrl,
+        historyId,
       } = req.body;
 
       // [DEVELOPER MODE: SYNC - Un-comment below to see full JSON results in Postman]
@@ -242,11 +295,22 @@ export class CrawlController {
         saveToDb,
       })
         .then((result) => {
-          CrawlController._handleCallback("itviec", result, callbackUrl);
+          CrawlController._handleCallback(
+            "itviec",
+            result,
+            callbackUrl,
+            historyId,
+          );
         })
         .catch((err) => {
           console.error(
             `[Async] Unhandled error in ITviec crawl: ${err.message}`,
+          );
+          CrawlController._handleCallback(
+            "itviec",
+            { success: false, error: err.message },
+            callbackUrl,
+            historyId,
           );
         });
 
@@ -268,7 +332,7 @@ export class CrawlController {
   }
 
   // POST /api/crawl/vieclam24h
-  // Body: { url?: string, maxPages?: number, fetchDetail?: boolean, saveToDb?: boolean, cssConfig: CrawlerCssConfig, callbackUrl?: string }
+  // Body: { url?: string, maxPages?: number, fetchDetail?: boolean, saveToDb?: boolean, cssConfig: CrawlerCssConfig, callbackUrl?: string, historyId?: string }
   static async crawlVieclam24h(req: Request, res: Response) {
     try {
       const {
@@ -278,6 +342,7 @@ export class CrawlController {
         saveToDb = false,
         cssConfig,
         callbackUrl,
+        historyId,
       } = req.body;
 
       // [DEVELOPER MODE: SYNC - Un-comment below to see full JSON results in Postman]
@@ -295,11 +360,22 @@ export class CrawlController {
         cssConfig,
       })
         .then((result) => {
-          CrawlController._handleCallback("vieclam24h", result, callbackUrl);
+          CrawlController._handleCallback(
+            "vieclam24h",
+            result,
+            callbackUrl,
+            historyId,
+          );
         })
         .catch((err) => {
           console.error(
             `[Async] Unhandled error in Vieclam24h crawl: ${err.message}`,
+          );
+          CrawlController._handleCallback(
+            "vieclam24h",
+            { success: false, error: err.message },
+            callbackUrl,
+            historyId,
           );
         });
 
@@ -416,11 +492,22 @@ export class CrawlController {
           }
 
           if (asyncResult) {
-            CrawlController._handleCallback(normalizedSource, asyncResult, callbackUrl);
+            CrawlController._handleCallback(
+              normalizedSource,
+              asyncResult,
+              callbackUrl,
+              payload.historyId,
+            );
           }
         } catch (err) {
           console.error(
             `[Async Dispatch] Critical error in ${source} crawl: ${(err as Error).message}`,
+          );
+          CrawlController._handleCallback(
+            normalizedSource,
+            { success: false, error: (err as Error).message },
+            callbackUrl,
+            payload.historyId,
           );
         }
       };
