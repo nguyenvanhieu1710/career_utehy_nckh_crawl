@@ -7,6 +7,7 @@ export interface CompanyInput {
   website?: string;
   description?: string;
   logo?: string;
+  address?: string;
   companySize?: string;
   industries?: string[];
   locations?: string[];

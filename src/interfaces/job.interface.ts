@@ -16,6 +16,7 @@ export interface JobInput {
   postedDate?: string;
   expiresAt?: string;
   sourceUrl?: string;
+  imageUrl?: string;
   jobLevelName?: string;
   yearsOfExperience?: number;
   benefits?: string[];

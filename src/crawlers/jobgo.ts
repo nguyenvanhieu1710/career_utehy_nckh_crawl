@@ -18,6 +18,9 @@ export class JobGoCrawler extends GenericCrawler {
       },
       salary: { selector: ".mt-1.text-primary span:first-child", extract: "text" },
       location: { selector: ".mt-1.text-primary span:last-child", extract: "text" },
+      extraExtracts: {
+        jobImage: { selector: ".image-wrapper img", extract: "attr", attrName: "src" }
+      }
     },
     detail: {
       description: {

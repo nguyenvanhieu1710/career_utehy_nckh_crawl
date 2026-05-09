@@ -521,6 +521,7 @@ export class VietnamWorksCrawler implements ICrawler {
           locationSum: location,
           skills: tags, // VietnamWorks show skills directly on card
           skillsSum: tags.join(", "),
+          imageUrl: companyLogo ? (companyLogo.startsWith("http") ? companyLogo : `${this.BASE_URL}${companyLogo}`) : "",
         };
 
         items.push({
@@ -528,7 +529,7 @@ export class VietnamWorksCrawler implements ICrawler {
           companyKey: companySlug,
           companyData: {
             name: companyName,
-            logo: companyLogo,
+            logo: companyLogo ? (companyLogo.startsWith("http") ? companyLogo : `${this.BASE_URL}${companyLogo}`) : "",
             slug: companySlug,
           },
         });

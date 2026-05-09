@@ -19,6 +19,13 @@ export class ITviecCrawler extends GenericCrawler {
       salary: { selector: ".salary span", extract: "text" },
       location: { selector: "div[title].text-truncate", extract: "text" },
       tags: { selector: ".itag", extract: "text", isMultiple: true },
+      extraExtracts: {
+        jobImage: {
+          selector: ".logo-wrapper img",
+          extract: "attr",
+          attrName: "src",
+        },
+      },
     },
     detail: {
       description: {

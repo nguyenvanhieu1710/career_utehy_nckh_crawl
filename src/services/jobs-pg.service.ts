@@ -37,6 +37,7 @@ export class JobsPgService {
           // Update
           company.name = companyInput.name || "";
           company.logo_url = companyInput.logo || "";
+          company.address = companyInput.address || "";
           company.website = companyInput.website || "";
           company.description = companyInput.description || "";
           company.industry = companyInput.industries?.[0] || ""; // Lấy tạm ngành đầu tiên
@@ -56,6 +57,7 @@ export class JobsPgService {
             slug: companyInput.slug,
             name: companyInput.name || "",
             logo_url: companyInput.logo || "",
+            address: companyInput.address || "",
             website: companyInput.website || "",
             description: companyInput.description || "",
             industry: companyInput.industries?.[0] || "",
@@ -91,6 +93,7 @@ export class JobsPgService {
             years_of_experience: jobInput.yearsOfExperience || 0,
             status: this.truncate(jobInput.status?.toLowerCase(), 20) || "active",
             url_source: this.truncate(jobInput.sourceUrl, 255),
+            image_url: jobInput.imageUrl || "",
           };
 
           if (job) {

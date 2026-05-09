@@ -25,6 +25,9 @@ export interface CrawlerCssConfig {
     benefits?: SelectorConfig;
     skills?: SelectorConfig;
     expiresAt?: SelectorConfig;
+    companyLogo?: SelectorConfig;
+    companyAddress?: SelectorConfig;
+    companySize?: SelectorConfig;
   };
   // Cấu hình hành vi chung của trang
   behavior?: {

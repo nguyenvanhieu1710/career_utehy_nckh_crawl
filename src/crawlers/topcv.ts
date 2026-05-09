@@ -7,7 +7,7 @@ import { Logger } from "../utils/logger";
 export class TopCVCrawler {
   private static readonly logger = Logger;
   private static readonly BASE_URL = "https://www.topcv.vn";
-  private static readonly DEFAULT_LIST_URL = "https://www.topcv.vn/viec-lam";
+  private static readonly DEFAULT_LIST_URL = "https://www.topcv.vn/tim-viec-lam-moi-nhat";
 
   // --- Helpers ---
 
@@ -432,6 +432,7 @@ export class TopCVCrawler {
           jobType,
           status: "OPEN",
           sourceUrl,
+          imageUrl: companyLogoSrc,
           titleSum: title,
           locationSum: location,
           requirementsSum: experience ? [experience].join("; ") : undefined,

@@ -78,6 +78,9 @@ export class JobEntity {
   @Column({ type: "varchar", length: 255, nullable: true })
   url_source!: string;
 
+  @Column({ type: "text", nullable: true })
+  image_url!: string;
+
   @Column({ type: "timestamp", nullable: true })
   posted_at!: Date;
 

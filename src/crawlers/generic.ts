@@ -95,13 +95,13 @@ export class GenericCrawler implements ICrawler {
   protected static extractValue(
     $: any,
     context: any,
-    config?: SelectorConfig
+    config?: SelectorConfig,
   ): string | string[] | undefined {
     if (!config) return undefined;
 
     const isSelf = config.selector === "self";
     const el = isSelf ? context : context.find(config.selector);
-    
+
     if (!el || el.length === 0) return undefined;
 
     if (config.isMultiple) {
@@ -110,9 +110,21 @@ export class GenericCrawler implements ICrawler {
         let val = "";
         if (config.extract === "text") val = $(elem).text();
         else if (config.extract === "html") val = $(elem).html() || "";
-        else if (config.extract === "attr" && config.attrName)
-          val = $(elem).attr(config.attrName) || "";
-        
+        else if (config.extract === "attr" && config.attrName) {
+          const attr = config.attrName.toLowerCase();
+          if (attr === "src" || attr === "href") {
+            // Check for lazy loading attributes if standard src/href is empty or a placeholder
+            val =
+              $(elem).attr("data-src") ||
+              $(elem).attr("data-lazy-src") ||
+              $(elem).attr("data-original") ||
+              $(elem).attr(config.attrName) ||
+              "";
+          } else {
+            val = $(elem).attr(config.attrName) || "";
+          }
+        }
+
         if (val && val.trim()) {
           results.push(val.trim());
         }
@@ -122,9 +134,31 @@ export class GenericCrawler implements ICrawler {
       let val = "";
       if (config.extract === "text") val = el.first().text();
       else if (config.extract === "html") val = el.first().html() || "";
-      else if (config.extract === "attr" && config.attrName)
-        val = el.first().attr(config.attrName) || "";
+      else if (config.extract === "attr" && config.attrName) {
+        const attr = config.attrName.toLowerCase();
+        const element = el.first();
+        if (attr === "src" || attr === "href") {
+          val =
+            element.attr("data-src") ||
+            element.attr("data-lazy-src") ||
+            element.attr("data-original") ||
+            element.attr(config.attrName) ||
+            "";
+        } else {
+          val = element.attr(config.attrName) || "";
+        }
+      }
       return val.trim();
+    }
+  }
+
+  // Helper to normalize URLs
+  protected static normalizeUrl(url: string, baseUrl: string): string {
+    if (!url) return "";
+    try {
+      return new URL(url, baseUrl).href;
+    } catch {
+      return url;
     }
   }
 
@@ -132,7 +166,7 @@ export class GenericCrawler implements ICrawler {
   protected static async crawlListPage(
     page: Page,
     pageUrl: string,
-    options: CrawlerOptions
+    options: CrawlerOptions,
   ): Promise<{
     jobs: Array<{
       jobData: Partial<JobInput>;
@@ -157,7 +191,7 @@ export class GenericCrawler implements ICrawler {
           await this.sleep(1000);
         }
         await page.evaluate(() =>
-          window.scrollTo(0, document.body.scrollHeight)
+          window.scrollTo(0, document.body.scrollHeight),
         );
         await this.sleep(2000);
       } catch {
@@ -194,34 +228,37 @@ export class GenericCrawler implements ICrawler {
           sourceUrl = `${urlObj.origin}${sourceUrl.startsWith("/") ? "" : "/"}${sourceUrl}`;
         }
 
-        const companyName = (this.extractValue(
-          $,
-          $el,
-          listConfig.companyName
-        ) as string) || "Unknown Company";
-        const companyLogo = (this.extractValue(
-          $,
-          $el,
-          listConfig.logo
-        ) as string) || "";
-        const salaryText = (this.extractValue(
-          $,
-          $el,
-          listConfig.salary
-        ) as string) || "";
-        const locationText = (this.extractValue(
-          $,
-          $el,
-          listConfig.location
-        ) as string) || "";
-        
+        const companyName =
+          (this.extractValue($, $el, listConfig.companyName) as string) ||
+          "Unknown Company";
+
+        let companyLogo =
+          (this.extractValue($, $el, listConfig.logo) as string) || "";
+        companyLogo = this.normalizeUrl(companyLogo, pageUrl);
+
+        let jobImage = "";
+        if (listConfig.extraExtracts?.jobImage) {
+          jobImage =
+            (this.extractValue(
+              $,
+              $el,
+              listConfig.extraExtracts.jobImage,
+            ) as string) || "";
+          jobImage = this.normalizeUrl(jobImage, pageUrl);
+        }
+
+        const salaryText =
+          (this.extractValue($, $el, listConfig.salary) as string) || "";
+        const locationText =
+          (this.extractValue($, $el, listConfig.location) as string) || "";
+
         let tags: string[] = [];
         if (listConfig.tags) {
           const extractedTags = this.extractValue($, $el, listConfig.tags);
           if (Array.isArray(extractedTags)) {
-             tags = extractedTags;
+            tags = extractedTags;
           } else if (typeof extractedTags === "string" && extractedTags) {
-             tags = extractedTags.split(",").map(s => s.trim());
+            tags = extractedTags.split(",").map((s) => s.trim());
           }
         }
 
@@ -235,18 +272,23 @@ export class GenericCrawler implements ICrawler {
           slug: jobSlug,
           source: options.sourceName || "generic",
           sourceUrl,
+          imageUrl: jobImage,
           salaryDisplay: salaryText,
           location: locationText,
           locationSum: locationText,
           status: "OPEN",
           skills: tags,
-          skillsSum: tags.join(", ")
+          skillsSum: tags.join(", "),
         };
 
         items.push({
           jobData,
           companyKey: companySlug,
-          companyData: { name: companyName, logo: companyLogo, slug: companySlug },
+          companyData: {
+            name: companyName,
+            logo: companyLogo,
+            slug: companySlug,
+          },
         });
       } catch (err) {
         // Skip
@@ -260,12 +302,17 @@ export class GenericCrawler implements ICrawler {
   protected static async fetchJobDetail(
     page: Page,
     url: string,
-    options: CrawlerOptions
+    options: CrawlerOptions,
   ): Promise<{
     description: string;
     requirements: string[];
     benefits: string[];
     skills: string[];
+    companyUpdate?: {
+      logo?: string;
+      address?: string;
+      size?: string;
+    };
   }> {
     try {
       await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
@@ -275,7 +322,7 @@ export class GenericCrawler implements ICrawler {
       const $ = cheerio.load(content);
       const $body = $("body");
 
-      return this.extractDetailFromCheerio($, $body, options.cssConfig!);
+      return this.extractDetailFromCheerio($, $body, options.cssConfig!, url);
     } catch (err) {
       this.logger.error(`Error fetching job detail from ${url}: ${err}`);
       return { description: "", requirements: [], benefits: [], skills: [] };
@@ -285,12 +332,17 @@ export class GenericCrawler implements ICrawler {
   protected static async fetchJobDetailInteractive(
     page: Page,
     index: number,
-    options: CrawlerOptions
+    options: CrawlerOptions,
   ): Promise<{
     description: string;
     requirements: string[];
     benefits: string[];
     skills: string[];
+    companyUpdate?: {
+      logo?: string;
+      address?: string;
+      size?: string;
+    };
   }> {
     const config = options.cssConfig!;
     const interactive = config.behavior!.interactiveDetail!;
@@ -300,8 +352,11 @@ export class GenericCrawler implements ICrawler {
       const items = await page.$$(interactive.itemSelector);
       if (items[index]) {
         // 0. Lấy tiêu đề từ card để làm mốc kiểm tra
-        const titleSelector = (config.list.title as any).selector || config.list.title;
-        const jobTitle = await items[index].$eval(titleSelector, el => el.textContent?.trim()).catch(() => "");
+        const titleSelector =
+          (config.list.title as any).selector || config.list.title;
+        const jobTitle = await items[index]
+          .$eval(titleSelector, (el) => el.textContent?.trim())
+          .catch(() => "");
 
         // 1. Cuộn tới item và click
         await items[index].evaluate((el) => {
@@ -309,7 +364,7 @@ export class GenericCrawler implements ICrawler {
         });
         await this.sleep(300);
         await items[index].click();
-        
+
         // 2. Chờ nội dung load bằng cách kiểm tra tiêu đề trong khung chi tiết
         if (jobTitle) {
           try {
@@ -320,10 +375,12 @@ export class GenericCrawler implements ICrawler {
               },
               { timeout: 5000 },
               interactive.detailContainer,
-              jobTitle
+              jobTitle,
             );
           } catch (e) {
-            this.logger.warn(`Timeout waiting for job title "${jobTitle}" in detail pane`);
+            this.logger.warn(
+              `Timeout waiting for job title "${jobTitle}" in detail pane`,
+            );
           }
         }
 
@@ -331,14 +388,19 @@ export class GenericCrawler implements ICrawler {
 
         const content = await page.content();
         const $ = cheerio.load(content);
-        
+
         // 3. Sử dụng container làm context để trích xuất chính xác hơn
         const $container = $(interactive.detailContainer);
         if ($container.length === 0) {
-          return this.extractDetailFromCheerio($, $("body"), config);
+          return this.extractDetailFromCheerio(
+            $,
+            $("body"),
+            config,
+            page.url(),
+          );
         }
 
-        return this.extractDetailFromCheerio($, $container, config);
+        return this.extractDetailFromCheerio($, $container, config, page.url());
       }
     } catch (err) {
       this.logger.error(`Error in interactive detail extraction: ${err}`);
@@ -349,7 +411,8 @@ export class GenericCrawler implements ICrawler {
   private static extractDetailFromCheerio(
     $: any,
     $body: any,
-    config: CrawlerCssConfig
+    config: CrawlerCssConfig,
+    baseUrl: string,
   ) {
     const detailConfig = config.detail!;
     const description =
@@ -358,13 +421,11 @@ export class GenericCrawler implements ICrawler {
     const extractedRequirements = this.extractValue(
       $,
       $body,
-      detailConfig.requirements
+      detailConfig.requirements,
     );
     let requirements: string[] = [];
     if (Array.isArray(extractedRequirements)) {
-      requirements = extractedRequirements
-        .map((r) => r.trim())
-        .filter(Boolean);
+      requirements = extractedRequirements.map((r) => r.trim()).filter(Boolean);
     } else if (
       typeof extractedRequirements === "string" &&
       extractedRequirements
@@ -375,7 +436,11 @@ export class GenericCrawler implements ICrawler {
         .filter(Boolean);
     }
 
-    const extractedBenefits = this.extractValue($, $body, detailConfig.benefits);
+    const extractedBenefits = this.extractValue(
+      $,
+      $body,
+      detailConfig.benefits,
+    );
     let benefits: string[] = [];
     if (Array.isArray(extractedBenefits)) {
       benefits = extractedBenefits.map((b) => b.trim()).filter(Boolean);
@@ -390,10 +455,51 @@ export class GenericCrawler implements ICrawler {
     const skills = Array.isArray(extractedSkills)
       ? extractedSkills
       : typeof extractedSkills === "string"
-      ? [extractedSkills]
-      : [];
+        ? [extractedSkills]
+        : [];
 
-    return { description, requirements, benefits, skills };
+    const companyUpdate: any = {};
+    if ((detailConfig as any).companyLogo) {
+      const logo = this.extractValue(
+        $,
+        $body,
+        (detailConfig as any).companyLogo,
+      ) as string;
+      if (logo) companyUpdate.logo = this.normalizeUrl(logo, baseUrl);
+    }
+    if ((detailConfig as any).companyAddress) {
+      const addr = this.extractValue(
+        $,
+        $body,
+        (detailConfig as any).companyAddress,
+      ) as string;
+      if (addr)
+        companyUpdate.address = addr
+          .replace(/Địa chỉ:?/i, "")
+          .trim()
+          .substring(0, 255);
+    }
+    if ((detailConfig as any).companySize) {
+      const size = this.extractValue(
+        $,
+        $body,
+        (detailConfig as any).companySize,
+      ) as string;
+      if (size)
+        companyUpdate.size = size
+          .replace(/Quy mô:?/i, "")
+          .trim()
+          .substring(0, 50);
+    }
+
+    return {
+      description,
+      requirements,
+      benefits,
+      skills,
+      companyUpdate:
+        Object.keys(companyUpdate).length > 0 ? companyUpdate : undefined,
+    };
   }
 
   // --- Main Crawler Method ---
@@ -408,8 +514,13 @@ export class GenericCrawler implements ICrawler {
       fetchDetail = false,
       existingCompanies = new Set<string>(),
       existingJobs = new Set<string>(),
-      cssConfig,
     } = options;
+
+    // Handle double nesting if it exists (some payloads might wrap cssConfig inside another cssConfig)
+    let cssConfig = options.cssConfig!;
+    if ((cssConfig as any).cssConfig) {
+      cssConfig = (cssConfig as any).cssConfig;
+    }
 
     const [delayMin, delayMax] = cssConfig.behavior?.delayMs || [2000, 4000];
 
@@ -417,7 +528,14 @@ export class GenericCrawler implements ICrawler {
 
     const companiesMap = new Map<
       string,
-      { name: string; logo: string; slug: string; jobs: JobInput[] }
+      {
+        name: string;
+        logo: string;
+        address?: string;
+        companySize?: string;
+        slug: string;
+        jobs: JobInput[];
+      }
     >();
 
     let browser: Browser | null = null;
@@ -446,14 +564,18 @@ export class GenericCrawler implements ICrawler {
       for (let pageNum = 1; pageNum <= maxPages; pageNum++) {
         let pageUrl = url;
         try {
-           const urlObj = new URL(url);
-           urlObj.searchParams.set("page", pageNum.toString());
-           pageUrl = urlObj.toString();
+          const urlObj = new URL(url);
+          urlObj.searchParams.set("page", pageNum.toString());
+          pageUrl = urlObj.toString();
         } catch {
-           pageUrl = url.includes("?") ? `${url}&page=${pageNum}` : `${url}?page=${pageNum}`;
+          pageUrl = url.includes("?")
+            ? `${url}&page=${pageNum}`
+            : `${url}?page=${pageNum}`;
         }
 
-        GenericCrawler.logger.log(`Crawling page ${pageNum}/${maxPages}: ${pageUrl}`);
+        GenericCrawler.logger.log(
+          `Crawling page ${pageNum}/${maxPages}: ${pageUrl}`,
+        );
 
         try {
           const rawResults = await GenericCrawler.crawlListPage(page, pageUrl, {
@@ -463,11 +585,15 @@ export class GenericCrawler implements ICrawler {
           const pageJobs = rawResults.jobs || [];
 
           if (pageJobs.length === 0) {
-            GenericCrawler.logger.log(`No jobs found on page ${pageNum}, stopping list crawl.`);
+            GenericCrawler.logger.log(
+              `No jobs found on page ${pageNum}, stopping list crawl.`,
+            );
             break;
           }
 
-          GenericCrawler.logger.log(`Found ${pageJobs.length} jobs on page ${pageNum}.`);
+          GenericCrawler.logger.log(
+            `Found ${pageJobs.length} jobs on page ${pageNum}.`,
+          );
 
           for (let i = 0; i < pageJobs.length; i++) {
             const { jobData, companyKey, companyData } = pageJobs[i];
@@ -480,14 +606,14 @@ export class GenericCrawler implements ICrawler {
                 detail = await GenericCrawler.fetchJobDetailInteractive(
                   page,
                   i,
-                  options
+                  options,
                 );
               } else if (jobData.sourceUrl) {
                 // Standard mode: navigate to URL
                 detail = await GenericCrawler.fetchJobDetail(
                   page,
                   jobData.sourceUrl,
-                  options
+                  options,
                 );
                 // Sau khi vào trang detail, phải quay lại trang list cho job tiếp theo
                 await page.goto(pageUrl, { waitUntil: "domcontentloaded" });
@@ -510,21 +636,40 @@ export class GenericCrawler implements ICrawler {
                   skills: mergedSkills,
                   skillsSum: mergedSkills.join(", "),
                 };
+
+                // Cập nhật thông tin công ty từ detail nếu có
+                if (detail.companyUpdate) {
+                  if (!companiesMap.has(companyKey)) {
+                    companiesMap.set(companyKey, {
+                      ...companyData,
+                      address: (companyData as any).address,
+                      companySize: (companyData as any).companySize,
+                      jobs: [],
+                    });
+                  }
+                  const company = companiesMap.get(companyKey)!;
+                  if (detail.companyUpdate.logo)
+                    company.logo = detail.companyUpdate.logo;
+                  if (detail.companyUpdate.address)
+                    company.address = detail.companyUpdate.address;
+                  if (detail.companyUpdate.size)
+                    company.companySize = detail.companyUpdate.size;
+                }
               }
               await GenericCrawler.jitterSleep(delayMin / 2, delayMax / 2);
             }
 
-             if (!companiesMap.has(companyKey)) {
-               companiesMap.set(companyKey, { ...companyData, jobs: [] });
-             }
-             companiesMap.get(companyKey)!.jobs.push(fullJob);
-             processedJobsCount++;
+            if (!companiesMap.has(companyKey)) {
+              companiesMap.set(companyKey, { ...companyData, jobs: [] });
+            }
+            companiesMap.get(companyKey)!.jobs.push(fullJob);
+            processedJobsCount++;
           }
 
           await GenericCrawler.jitterSleep(delayMin, delayMax);
         } catch (err) {
-           GenericCrawler.logger.error(`Error on page ${pageNum}: ${err}`);
-           break;
+          GenericCrawler.logger.error(`Error on page ${pageNum}: ${err}`);
+          break;
         }
       }
     } finally {
@@ -533,15 +678,19 @@ export class GenericCrawler implements ICrawler {
 
     const results: CompanyInput[] = [];
     for (const [, company] of companiesMap) {
-       results.push({
-         id: uuidv4(),
-         name: company.name,
-         slug: company.slug,
-         logo: company.logo,
-         industries: [],
-         locations: [...new Set(company.jobs.map(j => j.location).filter(Boolean))],
-         jobs: company.jobs,
-       } as CompanyInput);
+      results.push({
+        id: uuidv4(),
+        name: company.name,
+        slug: company.slug,
+        logo: company.logo,
+        address: company.address,
+        companySize: company.companySize,
+        industries: [],
+        locations: [
+          ...new Set(company.jobs.map((j) => j.location).filter(Boolean)),
+        ],
+        jobs: company.jobs,
+      } as CompanyInput);
     }
 
     GenericCrawler.logger.log(`\n=== GENERIC CRAWL COMPLETED ===`);
