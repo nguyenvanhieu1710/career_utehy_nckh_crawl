@@ -18,6 +18,8 @@ export class JobGoCrawler extends GenericCrawler {
       },
       salary: { selector: ".mt-1.text-primary span:first-child", extract: "text" },
       location: { selector: ".mt-1.text-primary span:last-child", extract: "text" },
+      yearsOfExperience: { selector: "span:contains('Kinh nghiệm')", extract: "text" },
+      postedAt: { selector: ".time-release", extract: "text" },
       extraExtracts: {
         jobImage: { selector: ".image-wrapper img", extract: "attr", attrName: "src" }
       }
@@ -37,6 +39,9 @@ export class JobGoCrawler extends GenericCrawler {
         extract: "text",
         isMultiple: true,
       },
+      companyIndustry: { selector: ".company-industry", extract: "text" },
+      companySize: { selector: ".company-size", extract: "text" },
+      companyUrl: { selector: ".company-url a", extract: "attr", attrName: "href" },
     },
     behavior: {
       lazyLoadList: true,

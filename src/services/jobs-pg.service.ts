@@ -76,12 +76,13 @@ export class JobsPgService {
         for (const jobInput of companyInput.jobs) {
           let job = await jobRepo.findOneBy({ slug: jobInput.slug });
           
+          const workType = jobInput.workArrangement || jobInput.jobType || "";
           const jobData = {
             title: this.truncate(jobInput.title, 200),
             company_id: company.id,
             location: this.truncate(jobInput.location, 150),
-            work_arrangement: this.truncate(jobInput.workArrangement, 50),
-            job_type: this.truncate(jobInput.jobType, 20),
+            work_arrangement: this.truncate(workType, 50),
+            job_type: this.truncate(workType, 20),
             salary_display: this.truncate(jobInput.salaryDisplay, 100),
             salary_min: jobInput.salaryMin || 0,
             salary_max: jobInput.salaryMax || 0,
@@ -94,6 +95,8 @@ export class JobsPgService {
             status: this.truncate(jobInput.status?.toLowerCase(), 20) || "active",
             url_source: this.truncate(jobInput.sourceUrl, 255),
             image_url: jobInput.imageUrl || "",
+            posted_at: jobInput.postedDate ? new Date(jobInput.postedDate) : undefined,
+            expired_at: jobInput.expiresAt ? new Date(jobInput.expiresAt) : undefined,
           };
 
           if (job) {

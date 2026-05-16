@@ -17,7 +17,13 @@ export interface CrawlerCssConfig {
     salary?: SelectorConfig;
     location?: SelectorConfig;
     tags?: SelectorConfig;
-    extraExtracts?: Record<string, SelectorConfig>; // Lấy những trường phụ nếu có
+    yearsOfExperience?: SelectorConfig;
+    postedAt?: SelectorConfig;
+    companyUrl?: SelectorConfig;
+    extraTags?: SelectorConfig;
+    jobLevelName?: SelectorConfig;
+    workArrangement?: SelectorConfig;
+    extraExtracts?: Record<string, SelectorConfig>;
   };
   detail?: {
     description: SelectorConfig;
@@ -28,6 +34,12 @@ export interface CrawlerCssConfig {
     companyLogo?: SelectorConfig;
     companyAddress?: SelectorConfig;
     companySize?: SelectorConfig;
+    yearsOfExperience?: SelectorConfig;
+    postedAt?: SelectorConfig;
+    workArrangement?: SelectorConfig;
+    jobLevelName?: SelectorConfig;
+    companyIndustry?: SelectorConfig;
+    companyUrl?: SelectorConfig;
   };
   // Cấu hình hành vi chung của trang
   behavior?: {

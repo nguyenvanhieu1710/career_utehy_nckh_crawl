@@ -22,6 +22,28 @@ Content-Type: application/json
     "saveToDb": true
 }
 
+### Crawl TopCV
+# @name crawlTopCV
+POST {{baseUrl}}/crawl/topcv
+Content-Type: application/json
+
+{
+    "maxPages": 1,
+    "fetchDetail": true,
+    "saveToDb": true
+}
+
+### Crawl VietnamWorks
+# @name crawlVietnamWorks
+POST {{baseUrl}}/crawl/vietnamworks
+Content-Type: application/json
+
+{
+    "maxPages": 1,
+    "fetchDetail": true,
+    "saveToDb": true
+}
+
 ### Crawl ITviec
 # @name crawlITviec
 POST {{baseUrl}}/crawl/itviec

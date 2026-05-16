@@ -61,25 +61,25 @@ export class CrawlService {
       details: {
         jobgo: {
           name: "JobGo",
-          description: "Crawl từ jobsgo.vn - sử dụng Puppeteer để scrape HTML",
+          description: "Crawl từ jobsgo.vn - sử dụng Generic Crawler engine",
         },
         vietnamworks: {
           name: "VietnamWorks",
           description:
-            "Crawl từ vietnamworks.com - sử dụng Puppeteer để scrape HTML",
+            "Crawl từ vietnamworks.com - sử dụng Generic Crawler engine",
         },
         topcv: {
           name: "TopCV",
-          description: "Crawl từ topcv.vn - sử dụng Puppeteer để scrape HTML",
+          description: "Crawl từ topcv.vn - sử dụng Generic Crawler engine",
         },
         itviec: {
           name: "ITviec",
-          description: "Crawl từ itviec.com - sử dụng Generic Crawler động",
+          description: "Crawl từ itviec.com - sử dụng Generic Crawler engine",
         },
         vieclam24h: {
           name: "Vieclam24h",
           description:
-            "Crawl từ vieclam24h.vn - sử dụng CSS Config động từ Body",
+            "Crawl từ vieclam24h.vn - sử dụng Generic Crawler engine",
         },
       },
     };
@@ -139,13 +139,10 @@ export class CrawlService {
   static async crawlTopCV(
     options?: TopCVOptions & { saveToDb?: boolean },
   ): Promise<CrawlResult> {
-    this.logger.log("Starting TopCV crawl...");
+    this.logger.log("Starting TopCV crawl (Generic Engine)...");
     try {
-      const companies = await TopCVCrawler.crawl({
-        url: options?.url,
-        maxPages: options?.maxPages,
-        fetchDetail: options?.fetchDetail,
-      });
+      const crawler = new TopCVCrawler();
+      const companies = await crawler.crawl(options);
 
       const jobCount = companies.reduce((sum, c) => sum + c.jobs.length, 0);
 

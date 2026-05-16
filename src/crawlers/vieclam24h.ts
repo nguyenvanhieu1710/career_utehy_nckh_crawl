@@ -16,6 +16,8 @@ export class Vieclam24hCrawler extends GenericCrawler {
       logo: { selector: "figure img", extract: "attr", attrName: "src" },
       salary: { selector: ".svicon-money-circle + span", extract: "text" },
       location: { selector: ".svicon-location + span", extract: "text" },
+      yearsOfExperience: { selector: ".svicon-briefcase + span", extract: "text" },
+      postedAt: { selector: ".svicon-time + span", extract: "text" },
       extraExtracts: {
         jobImage: { selector: "figure img", extract: "attr", attrName: "src" },
       },
@@ -55,6 +57,15 @@ export class Vieclam24hCrawler extends GenericCrawler {
       companySize: {
         selector: ".text-14.text-se-neutral-84:contains('Quy mô')",
         extract: "text",
+      },
+      companyIndustry: {
+        selector: ".text-14.text-se-neutral-84:contains('Lĩnh vực')",
+        extract: "text",
+      },
+      companyUrl: {
+        selector: "a:contains('Xem trang công ty')",
+        extract: "attr",
+        attrName: "href",
       },
     },
     behavior: {

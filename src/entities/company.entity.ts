@@ -24,16 +24,16 @@ export class CompanyEntity {
   @Column({ type: "varchar", length: 200 })
   name!: string;
 
-  @Column({ type: "varchar", length: 255, unique: true, nullable: true })
+  @Column({ type: "text", unique: true, nullable: true })
   slug!: string;
 
-  @Column({ type: "varchar", length: 255, nullable: true })
+  @Column({ type: "text", nullable: true })
   logo_url!: string;
 
-  @Column({ type: "varchar", length: 255, nullable: true })
+  @Column({ type: "text", nullable: true })
   website!: string;
 
-  @Column({ type: "varchar", length: 255, nullable: true })
+  @Column({ type: "text", nullable: true })
   address!: string;
 
   @Column({ type: "text", nullable: true })

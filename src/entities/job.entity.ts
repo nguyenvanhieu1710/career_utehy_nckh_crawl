@@ -24,7 +24,7 @@ export class JobEntity {
   @Column({ type: "varchar", length: 200 })
   title!: string;
 
-  @Column({ type: "varchar", length: 255, unique: true, nullable: true })
+  @Column({ type: "text", unique: true, nullable: true })
   slug!: string;
 
   @Column({ type: "uuid" })
@@ -75,7 +75,7 @@ export class JobEntity {
   @Column({ type: "uuid", nullable: true })
   source_id!: string;
 
-  @Column({ type: "varchar", length: 255, nullable: true })
+  @Column({ type: "text", nullable: true })
   url_source!: string;
 
   @Column({ type: "text", nullable: true })
