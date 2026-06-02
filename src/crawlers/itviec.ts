@@ -20,9 +20,18 @@ export class ITviecCrawler extends GenericCrawler {
       location: { selector: "div[title].text-truncate", extract: "text" },
       tags: { selector: ".itag", extract: "text", isMultiple: true },
       postedAt: { selector: ".distance-time", extract: "text" },
-      yearsOfExperience: { selector: "span:contains('Experience')", extract: "text" },
-      jobLevelName: { selector: "label:contains('Cấp bậc') + p", extract: "text" },
-      workArrangement: { selector: "label:contains('Hình thức') + p", extract: "text" },
+      yearsOfExperience: {
+        selector: "span:contains('Experience')",
+        extract: "text",
+      },
+      jobLevelName: {
+        selector: "label:contains('Cấp bậc') + p",
+        extract: "text",
+      },
+      workArrangement: {
+        selector: "label:contains('Hình thức') + p",
+        extract: "text",
+      },
       extraExtracts: {
         jobImage: {
           selector: ".logo-wrapper img",
@@ -54,7 +63,15 @@ export class ITviecCrawler extends GenericCrawler {
       },
       companyIndustry: { selector: ".company-info .industry", extract: "text" },
       companySize: { selector: ".company-info .size", extract: "text" },
-      companyUrl: { selector: ".company-info a", extract: "attr", attrName: "href" },
+      companyUrl: {
+        selector: ".company-info a",
+        extract: "attr",
+        attrName: "href",
+      },
+      expiresAt: {
+        selector: ".deadline, .job-deadline, [class*='deadline']",
+        extract: "text",
+      },
     },
     behavior: {
       lazyLoadList: true,

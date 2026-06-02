@@ -15,8 +15,14 @@ export class Vieclam24hCrawler extends GenericCrawler {
       companyName: { selector: "h3.text-\\[14px\\]", extract: "text" },
       logo: { selector: "figure img", extract: "attr", attrName: "src" },
       salary: { selector: ".svicon-money-circle + span", extract: "text" },
-      location: { selector: ".svicon-location + span", extract: "text" },
-      yearsOfExperience: { selector: ".svicon-briefcase + span", extract: "text" },
+      location: {
+        selector: ".svicon-location ~ span.text-se-neutral-80",
+        extract: "text",
+      },
+      yearsOfExperience: {
+        selector: ".svicon-briefcase + span",
+        extract: "text",
+      },
       postedAt: { selector: ".svicon-time + span", extract: "text" },
       extraExtracts: {
         jobImage: { selector: "figure img", extract: "attr", attrName: "src" },
@@ -41,29 +47,46 @@ export class Vieclam24hCrawler extends GenericCrawler {
         extract: "text",
       },
       skills: {
-        selector: "h2:contains('Kỹ năng') + div div:not(:contains('•'))",
+        selector: "h2:contains('Kỹ năng') + div span",
         extract: "text",
         isMultiple: true,
       },
+      jobLevelName: {
+        selector: "div.text-12:contains('Cấp bậc') ~ div.text-14",
+        extract: "text",
+      },
+      workArrangement: {
+        selector: "div.text-12:contains('Hình thức') ~ div.text-14",
+        extract: "text",
+      },
+      expiresAt: {
+        selector: "div.text-12:contains('Hạn nộp') ~ div.text-14",
+        extract: "text",
+      },
+      yearsOfExperience: {
+        selector: "div.text-12:contains('Yêu cầu kinh nghiệm') ~ div.text-14",
+        extract: "text",
+      },
+      // Ngành nghề → lưu vào company.industry
+      companyIndustry: {
+        selector: "div.text-12:contains('Ngành nghề') ~ div.text-14",
+        extract: "text",
+      },
       companyLogo: {
-        selector: ".sm_cv\\:hidden img",
+        selector: "a[href*='danh-sach-tin-tuyen-dung'] img",
         extract: "attr",
         attrName: "src",
       },
       companyAddress: {
-        selector: ".text-14.text-se-neutral-84:contains('Địa chỉ')",
+        selector: ".svicon-location ~ div",
         extract: "text",
       },
       companySize: {
-        selector: ".text-14.text-se-neutral-84:contains('Quy mô')",
-        extract: "text",
-      },
-      companyIndustry: {
-        selector: ".text-14.text-se-neutral-84:contains('Lĩnh vực')",
+        selector: ".svicon-users ~ div",
         extract: "text",
       },
       companyUrl: {
-        selector: "a:contains('Xem trang công ty')",
+        selector: "a[href*='danh-sach-tin-tuyen-dung']",
         extract: "attr",
         attrName: "href",
       },

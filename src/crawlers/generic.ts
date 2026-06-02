@@ -166,8 +166,9 @@ export class GenericCrawler implements ICrawler {
   protected static parseExperience(text: string): number {
     if (!text) return 0;
     const lower = text.toLowerCase();
-    if (lower.includes("không yêu cầu") || lower.includes("dưới 1 năm")) return 0;
-    
+    if (lower.includes("không yêu cầu") || lower.includes("dưới 1 năm"))
+      return 0;
+
     const match = lower.match(/(\d+)/);
     return match ? parseInt(match[1]) : 0;
   }
@@ -177,7 +178,7 @@ export class GenericCrawler implements ICrawler {
     if (!text) return undefined;
     const now = new Date();
     const lower = text.toLowerCase();
-    
+
     const match = lower.match(/(\d+)\s*(giây|phút|giờ|ngày|tuần|tháng|năm)/);
     if (!match) return undefined;
 
@@ -185,13 +186,27 @@ export class GenericCrawler implements ICrawler {
     const unit = match[2];
 
     switch (unit) {
-      case "giây": now.setSeconds(now.getSeconds() - val); break;
-      case "phút": now.setMinutes(now.getMinutes() - val); break;
-      case "giờ": now.setHours(now.getHours() - val); break;
-      case "ngày": now.setDate(now.getDate() - val); break;
-      case "tuần": now.setDate(now.getDate() - val * 7); break;
-      case "tháng": now.setMonth(now.getMonth() - val); break;
-      case "năm": now.setFullYear(now.getFullYear() - val); break;
+      case "giây":
+        now.setSeconds(now.getSeconds() - val);
+        break;
+      case "phút":
+        now.setMinutes(now.getMinutes() - val);
+        break;
+      case "giờ":
+        now.setHours(now.getHours() - val);
+        break;
+      case "ngày":
+        now.setDate(now.getDate() - val);
+        break;
+      case "tuần":
+        now.setDate(now.getDate() - val * 7);
+        break;
+      case "tháng":
+        now.setMonth(now.getMonth() - val);
+        break;
+      case "năm":
+        now.setFullYear(now.getFullYear() - val);
+        break;
     }
     return now.toISOString();
   }
@@ -286,10 +301,15 @@ export class GenericCrawler implements ICrawler {
         const locationText =
           (this.extractValue($, $el, listConfig.location) as string) || "";
 
-        const expText = (this.extractValue($, $el, listConfig.yearsOfExperience) as string) || "";
-        const postedText = (this.extractValue($, $el, listConfig.postedAt) as string) || "";
-        const companyUrl = (this.extractValue($, $el, listConfig.companyUrl) as string) || "";
-        const extraTagsText = (this.extractValue($, $el, listConfig.extraTags) as string) || "";
+        const expText =
+          (this.extractValue($, $el, listConfig.yearsOfExperience) as string) ||
+          "";
+        const postedText =
+          (this.extractValue($, $el, listConfig.postedAt) as string) || "";
+        const companyUrl =
+          (this.extractValue($, $el, listConfig.companyUrl) as string) || "";
+        const extraTagsText =
+          (this.extractValue($, $el, listConfig.extraTags) as string) || "";
 
         let tags: string[] = [];
         if (listConfig.tags) {
@@ -302,12 +322,15 @@ export class GenericCrawler implements ICrawler {
         }
 
         if (extraTagsText) {
-          const extra = extraTagsText.split(",").map(s => s.trim()).filter(Boolean);
+          const extra = extraTagsText
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
           tags = [...new Set([...tags, ...extra])];
         }
 
         const companySlug = this.toSlug(companyName);
-        const jobId = uuidv4(); 
+        const jobId = uuidv4();
         const jobSlug = `${this.toSlug(title)}-${companySlug}-${jobId}`;
 
         const jobData: Partial<JobInput> = {
@@ -504,12 +527,41 @@ export class GenericCrawler implements ICrawler {
         ? [extractedSkills]
         : [];
 
-    const expText = (this.extractValue($, $body, (detailConfig as any).yearsOfExperience) as string) || "";
-    const postedText = (this.extractValue($, $body, (detailConfig as any).postedAt) as string) || "";
-    const workArrangement = (this.extractValue($, $body, (detailConfig as any).workArrangement) as string) || "";
-    const jobLevelName = (this.extractValue($, $body, (detailConfig as any).jobLevelName) as string) || "";
-    const companyIndustry = (this.extractValue($, $body, (detailConfig as any).companyIndustry) as string) || "";
-    const companyDetailUrl = (this.extractValue($, $body, (detailConfig as any).companyUrl) as string) || "";
+    const expText =
+      (this.extractValue(
+        $,
+        $body,
+        (detailConfig as any).yearsOfExperience,
+      ) as string) || "";
+    const postedText =
+      (this.extractValue($, $body, (detailConfig as any).postedAt) as string) ||
+      "";
+    const expiresAtText =
+      (this.extractValue($, $body, detailConfig.expiresAt) as string) || "";
+    const workArrangement =
+      (this.extractValue(
+        $,
+        $body,
+        (detailConfig as any).workArrangement,
+      ) as string) || "";
+    const jobLevelName =
+      (this.extractValue(
+        $,
+        $body,
+        (detailConfig as any).jobLevelName,
+      ) as string) || "";
+    const companyIndustry =
+      (this.extractValue(
+        $,
+        $body,
+        (detailConfig as any).companyIndustry,
+      ) as string) || "";
+    const companyDetailUrl =
+      (this.extractValue(
+        $,
+        $body,
+        (detailConfig as any).companyUrl,
+      ) as string) || "";
 
     const companyUpdate: any = {};
     if ((detailConfig as any).companyLogo) {
@@ -552,12 +604,15 @@ export class GenericCrawler implements ICrawler {
       skills,
       yearsOfExperience: expText ? this.parseExperience(expText) : undefined,
       postedAt: postedText ? this.parseRelativeTime(postedText) : undefined,
+      expiresAt: expiresAtText || undefined,
       workArrangement,
       jobLevelName,
       companyUpdate: {
         ...companyUpdate,
         industry: companyIndustry,
-        url: companyDetailUrl ? this.normalizeUrl(companyDetailUrl, baseUrl) : undefined,
+        url: companyDetailUrl
+          ? this.normalizeUrl(companyDetailUrl, baseUrl)
+          : undefined,
       },
     };
   }
@@ -695,9 +750,12 @@ export class GenericCrawler implements ICrawler {
                   requirementsSum: detail.requirements.slice(0, 5).join("; "),
                   skills: mergedSkills,
                   skillsSum: mergedSkills.join(", "),
-                  yearsOfExperience: detail.yearsOfExperience || fullJob.yearsOfExperience,
+                  yearsOfExperience:
+                    detail.yearsOfExperience || fullJob.yearsOfExperience,
                   postedDate: detail.postedAt || fullJob.postedDate,
-                  workArrangement: detail.workArrangement || fullJob.workArrangement,
+                  expiresAt: detail.expiresAt || fullJob.expiresAt,
+                  workArrangement:
+                    detail.workArrangement || fullJob.workArrangement,
                   jobLevelName: detail.jobLevelName || fullJob.jobLevelName,
                 };
 

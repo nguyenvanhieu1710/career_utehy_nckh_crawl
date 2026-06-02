@@ -18,10 +18,23 @@ export class VietnamWorksCrawler extends GenericCrawler {
       },
       salary: { selector: ".sc-dauhQT.cfzaBi", extract: "text" },
       location: { selector: ".sc-jNUliw.kVIiDJ", extract: "text" },
-      tags: { selector: ".sc-kQwWFH.gxyerW li label", extract: "text", isMultiple: true },
-      yearsOfExperience: { selector: "label:contains('Kinh nghiệm') + p", extract: "text" },
-      jobLevelName: { selector: "label:contains('Cấp bậc') + p", extract: "text" },
-      workArrangement: { selector: "label:contains('Hình thức') + p", extract: "text" },
+      tags: {
+        selector: ".sc-kQwWFH.gxyerW li label",
+        extract: "text",
+        isMultiple: true,
+      },
+      yearsOfExperience: {
+        selector: "label:contains('Kinh nghiệm') + p",
+        extract: "text",
+      },
+      jobLevelName: {
+        selector: "label:contains('Cấp bậc') + p",
+        extract: "text",
+      },
+      workArrangement: {
+        selector: "label:contains('Hình thức') + p",
+        extract: "text",
+      },
     },
     detail: {
       description: {
@@ -45,7 +58,16 @@ export class VietnamWorksCrawler extends GenericCrawler {
       },
       companyIndustry: { selector: ".company-industry", extract: "text" },
       companySize: { selector: ".company-size", extract: "text" },
-      companyUrl: { selector: ".company-url a", extract: "attr", attrName: "href" },
+      companyUrl: {
+        selector: ".company-url a",
+        extract: "attr",
+        attrName: "href",
+      },
+      expiresAt: {
+        selector:
+          ".job-deadline, [class*='deadline'], span:contains('Hạn nộp') + span",
+        extract: "text",
+      },
     },
     behavior: {
       lazyLoadList: true,

@@ -3,7 +3,8 @@ import { CompanyInput, CrawlerOptions, CrawlerCssConfig } from "../interfaces";
 
 export class TopCVCrawler extends GenericCrawler {
   static readonly BASE_URL = "https://www.topcv.vn";
-  static readonly DEFAULT_LIST_URL = "https://www.topcv.vn/tim-viec-lam-moi-nhat";
+  static readonly DEFAULT_LIST_URL =
+    "https://www.topcv.vn/tim-viec-lam-moi-nhat";
 
   static readonly DEFAULT_CONFIG: CrawlerCssConfig = {
     list: {
@@ -20,9 +21,17 @@ export class TopCVCrawler extends GenericCrawler {
       location: { selector: "label.address span.city-text", extract: "text" },
       tags: { selector: ".tag .item-tag", extract: "text", isMultiple: true },
       yearsOfExperience: { selector: "label.exp span", extract: "text" },
-      postedAt: { selector: "label.label-update", extract: "attr", attrName: "data-original-title" },
+      postedAt: {
+        selector: "label.label-update",
+        extract: "attr",
+        attrName: "data-original-title",
+      },
       companyUrl: { selector: "a.company", extract: "attr", attrName: "href" },
-      extraTags: { selector: ".remaining-items", extract: "attr", attrName: "data-original-title" },
+      extraTags: {
+        selector: ".remaining-items",
+        extract: "attr",
+        attrName: "data-original-title",
+      },
     },
     detail: {
       description: {
@@ -30,21 +39,30 @@ export class TopCVCrawler extends GenericCrawler {
         extract: "text",
       },
       requirements: {
-        selector: ".job-description__item.requirement .job-description__item--content",
+        selector:
+          ".job-description__item.requirement .job-description__item--content",
         extract: "text",
         isMultiple: true,
       },
       benefits: {
-        selector: ".job-description__item.benefit .job-description__item--content",
+        selector:
+          ".job-description__item.benefit .job-description__item--content",
         extract: "text",
         isMultiple: true,
       },
       jobLevelName: {
-        selector: ".box-general-group-info:contains('Cấp bậc') .box-general-group-info-value",
+        selector:
+          ".box-general-group-info:contains('Cấp bậc') .box-general-group-info-value",
         extract: "text",
       },
       workArrangement: {
-        selector: ".box-general-group-info:contains('Hình thức làm việc') .box-general-group-info-value",
+        selector:
+          ".box-general-group-info:contains('Hình thức làm việc') .box-general-group-info-value",
+        extract: "text",
+      },
+      expiresAt: {
+        selector:
+          ".box-general-group-info:contains('Hạn nộp hồ sơ') .box-general-group-info-value",
         extract: "text",
       },
       companySize: {
